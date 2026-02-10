@@ -346,7 +346,8 @@ export function useMockChat() {
   const setModelUrl = useChatStore(state => state.setModelUrl)
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isLoading) return
+    if (!content.trim() || isLoading)
+      return
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -378,30 +379,35 @@ export function useMockChat() {
       })
 
       const reader = response.body?.getReader()
-      if (!reader) return
+      if (!reader)
+        return
 
       const decoder = new TextDecoder()
       let textContent = ''
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done)
+          break
 
         const chunk = decoder.decode(value)
         const lines = chunk.split('\n')
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
+          if (!line.startsWith('data: '))
+            continue
           const data = line.slice(6)
-          if (data === '[DONE]') continue
+          if (data === '[DONE]')
+            continue
 
           try {
             const parsed = JSON.parse(data)
 
-            setMessages(prev => {
+            setMessages((prev) => {
               const updated = [...prev]
               const lastMsg = updated[updated.length - 1]
-              if (lastMsg.role !== 'assistant') return prev
+              if (lastMsg.role !== 'assistant')
+                return prev
 
               if (parsed.type === 'text-delta') {
                 textContent += parsed.content
@@ -409,15 +415,18 @@ export function useMockChat() {
                 const textPartIndex = lastMsg.parts.findIndex(p => p.type === 'text')
                 if (textPartIndex >= 0) {
                   lastMsg.parts[textPartIndex].content = textContent
-                } else {
+                }
+                else {
                   lastMsg.parts.push({ type: 'text', content: textContent })
                 }
-              } else if (parsed.type === 'reasoning') {
+              }
+              else if (parsed.type === 'reasoning') {
                 lastMsg.parts = [
                   { type: 'reasoning', content: parsed.content },
                   ...lastMsg.parts.filter(p => p.type !== 'reasoning'),
                 ]
-              } else if (parsed.type === 'tool-call') {
+              }
+              else if (parsed.type === 'tool-call') {
                 const existingIndex = lastMsg.parts.findIndex(
                   p => p.type === 'tool-call' && p.name === parsed.name
                 )
@@ -429,23 +438,28 @@ export function useMockChat() {
                 }
                 if (existingIndex >= 0) {
                   lastMsg.parts[existingIndex] = toolPart
-                } else {
+                }
+                else {
                   lastMsg.parts.push(toolPart)
                 }
-              } else if (parsed.type === 'model-ready') {
+              }
+              else if (parsed.type === 'model-ready') {
                 setModelUrl(parsed.url)
               }
 
               return updated
             })
-          } catch {
+          }
+          catch {
             // ignore parse errors
           }
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Chat error:', error)
-    } finally {
+    }
+    finally {
       setIsLoading(false)
     }
   }, [isLoading, messages, setModelUrl])
@@ -498,8 +512,8 @@ git commit -m "feat: add useMockChat hook for streaming chat with parts"
 // components/chat/reasoning-block.tsx
 'use client'
 
+import { Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Brain } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ReasoningBlockProps {
@@ -519,11 +533,13 @@ export function ReasoningBlock({ content, isStreaming = false }: ReasoningBlockP
       >
         <Brain className="size-4" />
         <span>{isStreaming ? '思考中...' : '思考过程'}</span>
-        {isExpanded ? (
-          <ChevronDown className="ml-auto size-4" />
-        ) : (
-          <ChevronRight className="ml-auto size-4" />
-        )}
+        {isExpanded
+          ? (
+              <ChevronDown className="ml-auto size-4" />
+            )
+          : (
+              <ChevronRight className="ml-auto size-4" />
+            )}
       </button>
       <div
         className={cn(
@@ -546,7 +562,7 @@ export function ReasoningBlock({ content, isStreaming = false }: ReasoningBlockP
 // components/chat/tool-status.tsx
 'use client'
 
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ToolStatusProps {
@@ -602,12 +618,12 @@ export function ToolStatus({ name, status, result }: ToolStatusProps) {
 // components/chat/chat-message.tsx
 'use client'
 
+import type { Message } from '@/hooks/use-mock-chat'
 import { Copy, RefreshCw } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { ReasoningBlock } from './reasoning-block'
 import { ToolStatus } from './tool-status'
-import type { Message } from '@/hooks/use-mock-chat'
 
 interface ChatMessageProps {
   message: Message
@@ -818,11 +834,11 @@ git commit -m "feat: add chat empty state component"
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useMockChat } from '@/hooks/use-mock-chat'
-import { ChatMessage } from './chat-message'
-import { ChatInput } from './chat-input'
-import { ChatEmpty } from './chat-empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useMockChat } from '@/hooks/use-mock-chat'
+import { ChatEmpty } from './chat-empty'
+import { ChatInput } from './chat-input'
+import { ChatMessage } from './chat-message'
 
 interface ChatProps {
   onModelReady?: (modelUrl: string) => void
@@ -842,18 +858,20 @@ export function Chat({ onModelReady: _onModelReady }: ChatProps) {
   return (
     <div className="flex h-full flex-col">
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
-        {messages.length === 0 ? (
-          <ChatEmpty />
-        ) : (
-          messages.map((message, index) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              isStreaming={isLoading && index === messages.length - 1}
-              onRegenerate={message.role === 'assistant' ? reload : undefined}
-            />
-          ))
-        )}
+        {messages.length === 0
+          ? (
+              <ChatEmpty />
+            )
+          : (
+              messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isStreaming={isLoading && index === messages.length - 1}
+                  onRegenerate={message.role === 'assistant' ? reload : undefined}
+                />
+              ))
+            )}
       </ScrollArea>
       <div className="border-t border-border p-4">
         <ChatInput
@@ -894,13 +912,13 @@ git commit -m "feat: refactor Chat component with message list and input"
 // app/page.tsx
 'use client'
 
+import { useState } from 'react'
 import { Chat } from '@/components/chat'
 import { ModelViewer } from '@/components/model-viewer'
 import { OrderModal } from '@/components/order-modal'
 import { Button } from '@/components/ui/button'
-import { useChatStore } from '@/stores/chat-store'
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useChatStore } from '@/stores/chat-store'
 
 export default function Home() {
   const { phase, modelUrl } = useChatStore()
@@ -964,9 +982,9 @@ git commit -m "feat: update Home page to use Zustand store for phase management"
 // components/model-viewer/index.tsx
 'use client'
 
-import { Suspense } from 'react'
+import { Center, Environment, OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment, Center } from '@react-three/drei'
+import { Suspense } from 'react'
 
 interface ModelViewerProps {
   modelUrl: string
