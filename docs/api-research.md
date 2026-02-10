@@ -55,7 +55,7 @@ Web 应用：用户输入生日 → 计算生辰八字 → 分析八字生成吉
 ### 代码示例
 
 ```javascript
-const apiKey = 'tsk_***';
+const apiKey = 'tsk_***'
 
 // 1. 创建任务
 const createRes = await fetch('https://api.tripo3d.ai/v2/openapi/task', {
@@ -68,21 +68,21 @@ const createRes = await fetch('https://api.tripo3d.ai/v2/openapi/task', {
     type: 'text_to_model',
     prompt: '一只金色的麒麟，祥瑞之兆，精致小巧适合摆件'
   })
-});
-const { data: { task_id } } = await createRes.json();
+})
+const { data: { task_id } } = await createRes.json()
 
 // 2. 轮询状态
-let task;
+let task
 do {
-  await new Promise(r => setTimeout(r, 3000));
+  await new Promise(r => setTimeout(r, 3000))
   const statusRes = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${task_id}`, {
-    headers: { 'Authorization': `Bearer ${apiKey}` }
-  });
-  task = (await statusRes.json()).data;
-} while (task.status !== 'success' && task.status !== 'failed');
+    headers: { Authorization: `Bearer ${apiKey}` }
+  })
+  task = (await statusRes.json()).data
+} while (task.status !== 'success' && task.status !== 'failed')
 
 // 3. 获取模型 URL
-const modelUrl = task.output.model; // GLB 文件 URL
+const modelUrl = task.output.model // GLB 文件 URL
 ```
 
 ### 需要获取
@@ -175,12 +175,12 @@ const orderRes = await fetch('https://zwgf-api.tripo3d.com/shop/api/orders', {
     transaction_amount: 99.00,
     special_notes: 'hackathon 订单',
     original_model_files: [{
-      file_url: modelUrl,  // Tripo 生成的 GLB 文件 URL
+      file_url: modelUrl, // Tripo 生成的 GLB 文件 URL
       file_name: 'mascot.glb',
       file_size: fileSize
     }]
   })
-});
+})
 // Response: { success: true, order_id: 54, status: "pending_review" }
 ```
 
