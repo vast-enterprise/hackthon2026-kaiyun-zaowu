@@ -1,9 +1,17 @@
-import type { NextRequest } from 'next/server'
+import { tripoClient } from '@/lib/tripo'
 
 export async function GET(
-  _req: NextRequest,
-  { params: _params }: { params: Promise<{ id: string }> },
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // TODO: 查询 Tripo 任务状态
-  return new Response('Not implemented', { status: 501 })
+  const { id } = await params
+  try {
+    const task = await tripoClient.getTask(id)
+    return Response.json(task)
+  } catch (error) {
+    return Response.json(
+      { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
 }
