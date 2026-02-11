@@ -22,6 +22,8 @@ export function useChatSession() {
   const setCurrentSessionId = useChatStore(state => state.setCurrentSessionId)
   const resetStore = useChatStore(state => state.reset)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const sessionRef = useRef<Session | null>(null)
+  sessionRef.current = currentSession
 
   const chat = useChat({
     id: currentSession?.id,
@@ -31,19 +33,20 @@ export function useChatSession() {
 
   // Debounce save messages to IndexedDB
   useEffect(() => {
-    if (!currentSession || chat.messages.length === 0) return
+    const session = sessionRef.current
+    if (!session || chat.messages.length === 0) return
     clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       const { saveSession } = await import('@/lib/persistence/chat-db')
       const firstUserMsg = chat.messages.find(m => m.role === 'user')
       const textPart = firstUserMsg?.parts.find(p => p.type === 'text')
       const title = (textPart && 'text' in textPart ? textPart.text : '').slice(0, 20) || '新对话'
-      const updated = { ...currentSession, title, updatedAt: Date.now() }
+      const updated = { ...session, title, updatedAt: Date.now() }
       await saveSession(updated, chat.messages)
       setCurrentSession(updated)
     }, 300)
     return () => clearTimeout(saveTimerRef.current)
-  }, [chat.messages, currentSession])
+  }, [chat.messages])
 
   // Detect modelUrl from generateMascot tool output
   useEffect(() => {
