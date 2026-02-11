@@ -1,16 +1,18 @@
+// components/chat/chat-message.tsx
 'use client'
 
-import type { Message } from '@/hooks/use-mock-chat'
+import type { UIMessage } from 'ai'
 import { Copy, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import type { BaziResult } from '@/lib/bazi/types'
 import { BaguaCard } from './bagua-card'
 import { ModelPreview } from './model-preview'
 import { ReasoningBlock } from './reasoning-block'
 import { ToolStatus } from './tool-status'
 
 interface ChatMessageProps {
-  message: Message
+  message: UIMessage
   isStreaming?: boolean
   onRegenerate?: () => void
 }
@@ -18,8 +20,14 @@ interface ChatMessageProps {
 export function ChatMessage({ message, isStreaming, onRegenerate }: ChatMessageProps) {
   const isUser = message.role === 'user'
 
+  // Extract full text content
+  const textContent = message.parts
+    .filter((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
+    .map(p => p.text)
+    .join('')
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(message.content)
+    navigator.clipboard.writeText(textContent)
   }
 
   return (
@@ -38,51 +46,60 @@ export function ChatMessage({ message, isStreaming, onRegenerate }: ChatMessageP
         )}
       >
         {!isUser && message.parts.map((part, index) => {
-          if (part.type === 'reasoning' && part.content) {
+          if (part.type === 'reasoning') {
             return (
               <ReasoningBlock
                 key={`reasoning-${index}`}
-                content={part.content}
+                content={part.text}
                 isStreaming={isStreaming}
               />
             )
           }
-          if (part.type === 'tool-call' && part.name && part.status) {
-            // Render BaguaCard for completed analyzeBazi
-            if (part.name === 'analyzeBazi' && part.status === 'complete' && part.result) {
-              try {
-                const parsed = JSON.parse(part.result)
-                if (parsed.success && parsed.data) {
-                  return <BaguaCard key={`tool-${index}`} data={parsed.data} />
-                }
+
+          // Tool parts: type is 'tool-<toolName>'
+          if (part.type.startsWith('tool-') && 'toolCallId' in part) {
+            const toolName = part.type.slice(5) // remove 'tool-' prefix
+            const state = 'state' in part ? (part.state as string) : 'input-available'
+            const output = 'output' in part ? (part.output as Record<string, unknown>) : undefined
+
+            // BaguaCard for completed analyzeBazi
+            if (toolName === 'analyzeBazi' && state === 'output-available' && output) {
+              if (output.success && output.data) {
+                return (
+                  <BaguaCard
+                    key={`tool-${index}`}
+                    data={output.data as BaziResult}
+                  />
+                )
               }
-              catch { /* fall through to ToolStatus */ }
             }
-            // Render ModelPreview for generateMascot
-            if (part.name === 'generateMascot') {
+
+            // ModelPreview for generateMascot
+            if (toolName === 'generateMascot') {
               return (
                 <ModelPreview
                   key={`tool-${index}`}
-                  status={part.status}
-                  result={part.result}
+                  toolState={state}
+                  output={output}
                 />
               )
             }
+
             return (
               <ToolStatus
                 key={`tool-${index}`}
-                name={part.name}
-                status={part.status}
-                result={part.result}
+                name={toolName}
+                state={state}
               />
             )
           }
+
           return null
         })}
 
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        <div className="whitespace-pre-wrap">{textContent}</div>
 
-        {!isUser && message.content && !isStreaming && (
+        {!isUser && textContent && !isStreaming && (
           <div className="mt-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <Button
               variant="ghost"

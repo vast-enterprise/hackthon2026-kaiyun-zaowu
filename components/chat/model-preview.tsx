@@ -1,3 +1,4 @@
+// components/chat/model-preview.tsx
 'use client'
 
 import { Box, Loader2 } from 'lucide-react'
@@ -5,14 +6,16 @@ import { Button } from '@/components/ui/button'
 import { useChatStore } from '@/stores/chat-store'
 
 interface ModelPreviewProps {
-  status: 'calling' | 'complete' | 'error'
-  result?: string
+  toolState: string
+  output?: Record<string, unknown>
 }
 
-export function ModelPreview({ status, result }: ModelPreviewProps) {
-  const setModelUrl = useChatStore(state => state.setModelUrl)
+export function ModelPreview({ toolState, output }: ModelPreviewProps) {
+  const setModelUrl = useChatStore(s => s.setModelUrl)
 
-  if (status === 'calling') {
+  const isLoading = toolState !== 'output-available' && toolState !== 'output-error'
+
+  if (isLoading) {
     return (
       <div className="mb-3 flex items-center gap-2 rounded-lg border border-primary/50 bg-primary/5 px-3 py-4">
         <Loader2 className="size-4 animate-spin text-primary" />
@@ -21,7 +24,7 @@ export function ModelPreview({ status, result }: ModelPreviewProps) {
     )
   }
 
-  if (status === 'error') {
+  if (toolState === 'output-error') {
     return (
       <div className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 px-3 py-2 text-sm">
         <span>3D 模型生成失败</span>
@@ -29,26 +32,14 @@ export function ModelPreview({ status, result }: ModelPreviewProps) {
     )
   }
 
-  // status === 'complete'
-  let modelUrl: string | undefined
-  let renderedImage: string | undefined
-
-  if (result) {
-    try {
-      const parsed = JSON.parse(result)
-      if (parsed.success) {
-        modelUrl = parsed.modelUrl
-        renderedImage = parsed.renderedImage
-      }
-    }
-    catch { /* ignore */ }
-  }
+  // toolState === 'output-available'
+  const modelUrl = output?.modelUrl as string | undefined
+  const renderedImage = output?.renderedImage as string | undefined
 
   if (!modelUrl) return null
 
   return (
     <div className="mb-3 rounded-lg border border-border bg-card p-3">
-      {/* Thumbnail area */}
       <div className="mb-3 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted">
         {renderedImage
           ? (
@@ -65,10 +56,8 @@ export function ModelPreview({ status, result }: ModelPreviewProps) {
               </div>
             )}
       </div>
-
-      {/* Action button */}
       <div className="flex justify-center">
-        <Button size="sm" onClick={() => setModelUrl(modelUrl!)}>
+        <Button size="sm" onClick={() => setModelUrl(modelUrl)}>
           查看 3D 模型
         </Button>
       </div>

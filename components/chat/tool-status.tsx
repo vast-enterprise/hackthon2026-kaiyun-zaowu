@@ -1,3 +1,4 @@
+// components/chat/tool-status.tsx
 'use client'
 
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
@@ -5,46 +6,43 @@ import { cn } from '@/lib/utils'
 
 interface ToolStatusProps {
   name: string
-  status: 'calling' | 'complete' | 'error'
-  result?: string
+  state: string
 }
 
 const TOOL_LABELS: Record<string, string> = {
-  generate_3d_model: '生成 3D 模型',
-  analyze_bazi: '分析八字',
+  analyzeBazi: '分析八字',
+  generateMascot: '生成 3D 模型',
 }
 
-export function ToolStatus({ name, status, result }: ToolStatusProps) {
+export function ToolStatus({ name, state }: ToolStatusProps) {
   const label = TOOL_LABELS[name] || name
+  const isLoading = state !== 'output-available' && state !== 'output-error'
+  const isError = state === 'output-error'
+  const isDone = state === 'output-available'
 
   return (
     <div
       className={cn(
         'mb-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
-        status === 'calling' && 'border-primary/50 bg-primary/5',
-        status === 'complete' && 'border-green-500/50 bg-green-500/5',
-        status === 'error' && 'border-destructive/50 bg-destructive/5',
+        isLoading && 'border-primary/50 bg-primary/5',
+        isDone && 'border-green-500/50 bg-green-500/5',
+        isError && 'border-destructive/50 bg-destructive/5',
       )}
     >
-      {status === 'calling' && (
+      {isLoading && (
         <Loader2 className="size-4 animate-spin text-primary" />
       )}
-      {status === 'complete' && (
+      {isDone && (
         <CheckCircle className="size-4 text-green-500" />
       )}
-      {status === 'error' && (
+      {isError && (
         <AlertCircle className="size-4 text-destructive" />
       )}
       <span>
-        {status === 'calling' && `正在${label}...`}
-        {status === 'complete' && `${label}完成`}
-        {status === 'error' && `${label}失败`}
+        {isLoading && `正在${label}...`}
+        {isDone && `${label}完成`}
+        {isError && `${label}失败`}
       </span>
-      {result && status === 'complete' && (
-        <span className="ml-auto text-xs text-muted-foreground">
-          查看结果 →
-        </span>
-      )}
     </div>
   )
 }

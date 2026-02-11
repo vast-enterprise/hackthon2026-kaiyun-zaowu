@@ -1,21 +1,36 @@
+// components/chat/index.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useMockChat } from '@/hooks/use-mock-chat'
+import { useChatSession } from '@/hooks/use-chat-session'
 import { ChatEmpty } from './chat-empty'
 import { ChatInput } from './chat-input'
 import { ChatMessage } from './chat-message'
 
 export function Chat() {
-  const { messages, input, setInput, isLoading, handleSubmit, reload, currentSession, loadSession, newSession } = useMockChat()
+  const {
+    messages,
+    sendMessage,
+    regenerate,
+    status,
+    currentSession,
+    loadSession,
+    newSession,
+  } = useChatSession()
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const isLoading = status === 'submitted' || status === 'streaming'
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
+
+  const handleSend = (text: string) => {
+    sendMessage({ text })
+  }
 
   return {
     currentSession,
@@ -31,15 +46,13 @@ export function Chat() {
                   key={message.id}
                   message={message}
                   isStreaming={isLoading && index === messages.length - 1}
-                  onRegenerate={message.role === 'assistant' ? reload : undefined}
+                  onRegenerate={message.role === 'assistant' ? regenerate : undefined}
                 />
               ))}
         </ScrollArea>
         <div className="border-t border-border p-4">
           <ChatInput
-            value={input}
-            onChange={setInput}
-            onSubmit={handleSubmit}
+            onSend={handleSend}
             isLoading={isLoading}
           />
         </div>
