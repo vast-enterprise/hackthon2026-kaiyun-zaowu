@@ -80,20 +80,21 @@ const analyzeBazi = tool({
   }),
   execute: async (input) => {
     try {
-      const result = calculateBazi(input);
+      const result = calculateBazi(input)
       return {
         success: true,
-        fourPillars: result.fourPillars,      // 四柱（年月日时的天干地支）
-        fiveElements: result.fiveElements,    // 五行统计
-        favorable: result.favorable,          // 喜用神
-        unfavorable: result.unfavorable,      // 忌神
-        mascotTraits: result.mascotTraits,    // 推荐吉祥物特征
-      };
-    } catch (e) {
-      return { success: false, error: '八字计算失败，请检查日期是否正确' };
+        fourPillars: result.fourPillars, // 四柱（年月日时的天干地支）
+        fiveElements: result.fiveElements, // 五行统计
+        favorable: result.favorable, // 喜用神
+        unfavorable: result.unfavorable, // 忌神
+        mascotTraits: result.mascotTraits, // 推荐吉祥物特征
+      }
+    }
+    catch (e) {
+      return { success: false, error: '八字计算失败，请检查日期是否正确' }
     }
   },
-});
+})
 ```
 
 ### generateMascot
@@ -109,39 +110,40 @@ const generateMascot = tool({
   }),
   execute: async ({ prompt, style }) => {
     try {
-      const fullPrompt = style ? `${prompt}，${style}风格` : prompt;
-      const taskId = await tripoClient.createTask(fullPrompt);
+      const fullPrompt = style ? `${prompt}，${style}风格` : prompt
+      const taskId = await tripoClient.createTask(fullPrompt)
       const result = await tripoClient.waitForCompletion(taskId, {
         timeout: 120_000,
         interval: 3_000,
-      });
+      })
       return {
         success: true,
         modelUrl: result.output.model,
         taskId,
-      };
-    } catch (e) {
-      return { success: false, error: e.message || '3D 模型生成失败' };
+      }
+    }
+    catch (e) {
+      return { success: false, error: e.message || '3D 模型生成失败' }
     }
   },
-});
+})
 ```
 
 ## API 路由实现
 
 ```typescript
 // app/api/chat/route.ts
-import { createDeepSeek } from '@ai-sdk/deepseek';
-import { streamText, tool, convertToModelMessages, stepCountIs } from 'ai';
-import { z } from 'zod';
-import { calculateBazi } from '@/lib/bazi';
-import { tripoClient } from '@/lib/tripo';
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai'
+import { z } from 'zod'
+import { calculateBazi } from '@/lib/bazi'
+import { tripoClient } from '@/lib/tripo'
 
 const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY!,
-});
+})
 
-const tools = { analyzeBazi, generateMascot };
+const tools = { analyzeBazi, generateMascot }
 
 const systemPrompt = `你是一位精通八字命理的吉祥物设计师。
 
@@ -154,10 +156,10 @@ const systemPrompt = `你是一位精通八字命理的吉祥物设计师。
 注意：
 - 吉祥物描述要具体（形态、颜色、姿态、配饰）
 - 结合五行喜用神选择合适的元素
-- 风格偏向精致小巧，适合作为摆件`;
+- 风格偏向精致小巧，适合作为摆件`
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages } = await req.json()
 
   const result = streamText({
     model: deepseek('deepseek-chat'),
@@ -165,9 +167,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools,
     stopWhen: stepCountIs(10),
-  });
+  })
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse()
 }
 ```
 
@@ -175,12 +177,12 @@ export async function POST(req: Request) {
 
 ```typescript
 // lib/tripo.ts
-const TRIPO_API_BASE = 'https://api.tripo3d.ai/v2/openapi';
+const TRIPO_API_BASE = 'https://api.tripo3d.ai/v2/openapi'
 
 interface TripoTask {
-  task_id: string;
-  status: 'queued' | 'running' | 'success' | 'failed';
-  output?: { model: string };
+  task_id: string
+  status: 'queued' | 'running' | 'success' | 'failed'
+  output?: { model: string }
 }
 
 export const tripoClient = {
@@ -196,35 +198,39 @@ export const tripoClient = {
         prompt,
         model_version: 'v2.5-20250123',
       }),
-    });
-    const data = await res.json();
-    if (data.code !== 0) throw new Error(data.message || '创建任务失败');
-    return data.data.task_id;
+    })
+    const data = await res.json()
+    if (data.code !== 0)
+      throw new Error(data.message || '创建任务失败')
+    return data.data.task_id
   },
 
   async getTask(taskId: string): Promise<TripoTask> {
     const res = await fetch(`${TRIPO_API_BASE}/task/${taskId}`, {
-      headers: { 'Authorization': `Bearer ${process.env.TRIPO_API_KEY}` },
-    });
-    const data = await res.json();
-    if (data.code !== 0) throw new Error(data.message || '查询任务失败');
-    return data.data;
+      headers: { Authorization: `Bearer ${process.env.TRIPO_API_KEY}` },
+    })
+    const data = await res.json()
+    if (data.code !== 0)
+      throw new Error(data.message || '查询任务失败')
+    return data.data
   },
 
   async waitForCompletion(
     taskId: string,
-    options: { timeout: number; interval: number }
+    options: { timeout: number, interval: number }
   ): Promise<TripoTask> {
-    const startTime = Date.now();
+    const startTime = Date.now()
     while (Date.now() - startTime < options.timeout) {
-      const task = await this.getTask(taskId);
-      if (task.status === 'success') return task;
-      if (task.status === 'failed') throw new Error('3D 生成失败');
-      await new Promise((r) => setTimeout(r, options.interval));
+      const task = await this.getTask(taskId)
+      if (task.status === 'success')
+        return task
+      if (task.status === 'failed')
+        throw new Error('3D 生成失败')
+      await new Promise(r => setTimeout(r, options.interval))
     }
-    throw new Error('3D 生成超时');
+    throw new Error('3D 生成超时')
   },
-};
+}
 ```
 
 ## 八字计算库
@@ -243,30 +249,30 @@ lib/bazi/
 ### 核心实现
 
 ```typescript
+import type { BaziInput, BaziResult } from './types'
+import { calculateRelation, getShen } from 'cantian-tymext'
 // lib/bazi/index.ts
-import { SolarTime, LunarHour, Gender, ChildLimit, LunarSect2EightCharProvider } from 'tyme4ts';
-import { calculateRelation, getShen } from 'cantian-tymext';
-import { countFiveElements } from './five-elements';
-import type { BaziInput, BaziResult } from './types';
+import { ChildLimit, Gender, LunarHour, LunarSect2EightCharProvider, SolarTime } from 'tyme4ts'
+import { countFiveElements } from './five-elements'
 
 // 使用"早子时当天"的八字算法（更常用）
-LunarHour.provider = new LunarSect2EightCharProvider();
+LunarHour.provider = new LunarSect2EightCharProvider()
 
 export function calculateBazi(input: BaziInput): BaziResult {
-  const { year, month, day, hour, minute = 0, gender = 1 } = input;
+  const { year, month, day, hour, minute = 0, gender = 1 } = input
 
   // 1. 公历 → SolarTime → LunarHour → EightChar
-  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0);
-  const lunarHour = solarTime.getLunarHour();
-  const eightChar = lunarHour.getEightChar();
+  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0)
+  const lunarHour = solarTime.getLunarHour()
+  const eightChar = lunarHour.getEightChar()
 
   // 2. 获取四柱信息
-  const yearPillar = eightChar.getYear();
-  const monthPillar = eightChar.getMonth();
-  const dayPillar = eightChar.getDay();
-  const hourPillar = eightChar.getHour();
+  const yearPillar = eightChar.getYear()
+  const monthPillar = eightChar.getMonth()
+  const dayPillar = eightChar.getDay()
+  const hourPillar = eightChar.getHour()
 
-  const me = dayPillar.getHeavenStem(); // 日主
+  const me = dayPillar.getHeavenStem() // 日主
 
   // 3. 构建四柱详细数据（含天干、地支、五行、阴阳、十神、藏干、纳音等）
   const fourPillars = {
@@ -274,11 +280,11 @@ export function calculateBazi(input: BaziInput): BaziResult {
     month: buildPillarDetail(monthPillar, me, 'month'),
     day: buildPillarDetail(dayPillar, me, 'day'),
     hour: buildPillarDetail(hourPillar, me, 'hour'),
-  };
+  }
 
   // 4. 神煞（来自 cantian-tymext）
-  const baziStr = eightChar.toString(); // "戊寅 己未 己卯 辛未"
-  const gods = getShen(baziStr, gender);
+  const baziStr = eightChar.toString() // "戊寅 己未 己卯 辛未"
+  const gods = getShen(baziStr, gender)
 
   // 5. 刑冲合会（来自 cantian-tymext）
   const relations = calculateRelation({
@@ -286,18 +292,18 @@ export function calculateBazi(input: BaziInput): BaziResult {
     month: monthPillar.toString(),
     day: dayPillar.toString(),
     hour: hourPillar.toString(),
-  });
+  })
 
   // 6. 大运
-  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE;
-  const childLimit = ChildLimit.fromSolarTime(solarTime, genderEnum);
-  const decadeFortunes = buildDecadeFortunes(childLimit, me);
+  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE
+  const childLimit = ChildLimit.fromSolarTime(solarTime, genderEnum)
+  const decadeFortunes = buildDecadeFortunes(childLimit, me)
 
   // 7. 五行统计（自己实现）
-  const fiveElements = countFiveElements(fourPillars);
+  const fiveElements = countFiveElements(fourPillars)
 
   // 8. 基础信息
-  const lunar = solarTime.getLunarDay();
+  const lunar = solarTime.getLunarDay()
 
   return {
     // 基础信息
@@ -321,12 +327,12 @@ export function calculateBazi(input: BaziInput): BaziResult {
 
     // 刑冲合会
     relations,
-  };
+  }
 }
 
 function buildPillarDetail(pillar: SixtyCycle, me: HeavenStem, position: string) {
-  const stem = pillar.getHeavenStem();
-  const branch = pillar.getEarthBranch();
+  const stem = pillar.getHeavenStem()
+  const branch = pillar.getEarthBranch()
 
   return {
     ganZhi: pillar.toString(),
@@ -346,7 +352,7 @@ function buildPillarDetail(pillar: SixtyCycle, me: HeavenStem, position: string)
       })),
     },
     naYin: pillar.getSound().getName(),
-  };
+  }
 }
 ```
 
@@ -354,33 +360,35 @@ function buildPillarDetail(pillar: SixtyCycle, me: HeavenStem, position: string)
 
 ```typescript
 // lib/bazi/five-elements.ts
-import type { FourPillars, FiveElements } from './types';
+import type { FiveElements, FourPillars } from './types'
 
 const WUXING_MAP: Record<string, keyof FiveElements> = {
-  '木': 'wood',
-  '火': 'fire',
-  '土': 'earth',
-  '金': 'metal',
-  '水': 'water',
-};
+  木: 'wood',
+  火: 'fire',
+  土: 'earth',
+  金: 'metal',
+  水: 'water',
+}
 
 export function countFiveElements(fourPillars: FourPillars): FiveElements {
-  const counts: FiveElements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
+  const counts: FiveElements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 }
 
   for (const pillar of Object.values(fourPillars)) {
     // 天干五行
-    const stemElement = WUXING_MAP[pillar.tianGan.wuXing];
-    if (stemElement) counts[stemElement]++;
+    const stemElement = WUXING_MAP[pillar.tianGan.wuXing]
+    if (stemElement)
+      counts[stemElement]++
 
     // 地支五行
-    const branchElement = WUXING_MAP[pillar.diZhi.wuXing];
-    if (branchElement) counts[branchElement]++;
+    const branchElement = WUXING_MAP[pillar.diZhi.wuXing]
+    if (branchElement)
+      counts[branchElement]++
 
     // 藏干五行（可选：是否计入统计）
     // for (const cg of pillar.diZhi.cangGan) { ... }
   }
 
-  return counts;
+  return counts
 }
 ```
 

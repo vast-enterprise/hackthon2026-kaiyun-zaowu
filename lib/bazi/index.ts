@@ -41,7 +41,7 @@ export function calculateBazi(input: BaziInput): BaziResult {
 
   // 4. Spirit Sha (gods)
   const baziStr = eightChar.toString()
-  let gods: Record<string, string[]> = {}
+  let gods: string[][] = []
   try {
     gods = getShen(baziStr, gender)
   }
@@ -53,10 +53,10 @@ export function calculateBazi(input: BaziInput): BaziResult {
   let relations: Record<string, unknown> = {}
   try {
     relations = calculateRelation({
-      year: yearPillar.toString(),
-      month: monthPillar.toString(),
-      day: dayPillar.toString(),
-      hour: hourPillar.toString(),
+      year: { 天干: yearPillar.getHeavenStem().getName(), 地支: yearPillar.getEarthBranch().getName() },
+      month: { 天干: monthPillar.getHeavenStem().getName(), 地支: monthPillar.getEarthBranch().getName() },
+      day: { 天干: dayPillar.getHeavenStem().getName(), 地支: dayPillar.getEarthBranch().getName() },
+      hour: { 天干: hourPillar.getHeavenStem().getName(), 地支: hourPillar.getEarthBranch().getName() },
     })
   }
   catch {
@@ -64,7 +64,7 @@ export function calculateBazi(input: BaziInput): BaziResult {
   }
 
   // 6. Decade fortunes
-  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE
+  const genderEnum = gender === 1 ? Gender.MAN : Gender.WOMAN
   const decadeFortunes = buildDecadeFortunes(solarTime, genderEnum)
 
   // 7. Five elements count

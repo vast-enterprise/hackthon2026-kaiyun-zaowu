@@ -72,8 +72,8 @@ export interface BaziResult {
   // Five Elements count
   fiveElements: FiveElements
 
-  // Spirit Sha (gods)
-  gods: Record<string, string[]>
+  // Spirit Sha (gods) - array of [pillar, shenSha[]] pairs
+  gods: string[][]
 
   // Decade Fortunes
   decadeFortunes: DecadeFortune[]

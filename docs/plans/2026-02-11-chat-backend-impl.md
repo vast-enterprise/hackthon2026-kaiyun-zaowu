@@ -53,85 +53,85 @@ git commit -m "chore: add backend dependencies (ai-sdk, tyme4ts, cantian-tymext)
 // lib/bazi/types.ts
 
 export interface BaziInput {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute?: number;
-  gender?: 0 | 1; // 0: female, 1: male
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute?: number
+  gender?: 0 | 1 // 0: female, 1: male
 }
 
 export interface TianGan {
-  name: string;      // Heavenly Stem name, e.g. "甲"
-  wuXing: string;    // Five Elements, e.g. "木" (Wood)
-  yinYang: string;   // Yin/Yang, e.g. "阳" (Yang)
-  shiShen?: string;  // Ten Gods, e.g. "正官" (day pillar has no shiShen)
+  name: string // Heavenly Stem name, e.g. "甲"
+  wuXing: string // Five Elements, e.g. "木" (Wood)
+  yinYang: string // Yin/Yang, e.g. "阳" (Yang)
+  shiShen?: string // Ten Gods, e.g. "正官" (day pillar has no shiShen)
 }
 
 export interface CangGan {
-  name: string;      // Hidden Stem name, e.g. "甲"
-  shiShen: string;   // Ten Gods
+  name: string // Hidden Stem name, e.g. "甲"
+  shiShen: string // Ten Gods
 }
 
 export interface DiZhi {
-  name: string;       // Earthly Branch name, e.g. "寅"
-  wuXing: string;     // Five Elements
-  yinYang: string;    // Yin/Yang
-  cangGan: CangGan[]; // Hidden Stems (main, middle, residual qi)
+  name: string // Earthly Branch name, e.g. "寅"
+  wuXing: string // Five Elements
+  yinYang: string // Yin/Yang
+  cangGan: CangGan[] // Hidden Stems (main, middle, residual qi)
 }
 
 export interface Pillar {
-  ganZhi: string;     // Stem-Branch pair, e.g. "甲寅"
-  tianGan: TianGan;
-  diZhi: DiZhi;
-  naYin: string;      // Na Yin (sound), e.g. "大溪水"
+  ganZhi: string // Stem-Branch pair, e.g. "甲寅"
+  tianGan: TianGan
+  diZhi: DiZhi
+  naYin: string // Na Yin (sound), e.g. "大溪水"
 }
 
 export interface FourPillars {
-  year: Pillar;
-  month: Pillar;
-  day: Pillar;
-  hour: Pillar;
+  year: Pillar
+  month: Pillar
+  day: Pillar
+  hour: Pillar
 }
 
 export interface FiveElements {
-  wood: number;
-  fire: number;
-  earth: number;
-  metal: number;
-  water: number;
+  wood: number
+  fire: number
+  earth: number
+  metal: number
+  water: number
 }
 
 export interface DecadeFortune {
-  ganZhi: string;
-  startYear: number;
-  endYear: number;
-  startAge: number;
-  endAge: number;
+  ganZhi: string
+  startYear: number
+  endYear: number
+  startAge: number
+  endAge: number
 }
 
 export interface BaziResult {
   // Basic info
-  solar: string;
-  lunar: string;
-  bazi: string;
-  zodiac: string;
-  dayMaster: string;
+  solar: string
+  lunar: string
+  bazi: string
+  zodiac: string
+  dayMaster: string
 
   // Four Pillars detail
-  fourPillars: FourPillars;
+  fourPillars: FourPillars
 
   // Five Elements count
-  fiveElements: FiveElements;
+  fiveElements: FiveElements
 
   // Spirit Sha (gods)
-  gods: Record<string, string[]>;
+  gods: Record<string, string[]>
 
   // Decade Fortunes
-  decadeFortunes: DecadeFortune[];
+  decadeFortunes: DecadeFortune[]
 
   // Punishment/Clash/Combination relations
-  relations: Record<string, unknown>;
+  relations: Record<string, unknown>
 }
 ```
 
@@ -153,10 +153,10 @@ git commit -m "feat(bazi): add TypeScript type definitions"
 **Step 1: Write the failing test**
 
 ```typescript
+import type { FourPillars } from '../types'
 // lib/bazi/__tests__/five-elements.test.ts
-import { describe, it, expect } from 'vitest';
-import { countFiveElements } from '../five-elements';
-import type { FourPillars } from '../types';
+import { describe, expect, it } from 'vitest'
+import { countFiveElements } from '../five-elements'
 
 describe('countFiveElements', () => {
   it('counts five elements from four pillars', () => {
@@ -185,19 +185,19 @@ describe('countFiveElements', () => {
         diZhi: { name: '未', wuXing: '土', yinYang: '阴', cangGan: [] },
         naYin: '路旁土',
       },
-    };
+    }
 
-    const result = countFiveElements(fourPillars);
+    const result = countFiveElements(fourPillars)
 
     expect(result).toEqual({
-      wood: 2,  // 寅 + 卯
+      wood: 2, // 寅 + 卯
       fire: 0,
       earth: 5, // 戊 + 未 + 己 + 己 + 未
       metal: 1, // 辛
       water: 0,
-    });
-  });
-});
+    })
+  })
+})
 ```
 
 **Step 2: Run test to verify it fails**
@@ -210,30 +210,32 @@ Expected: FAIL - module not found
 
 ```typescript
 // lib/bazi/five-elements.ts
-import type { FourPillars, FiveElements } from './types';
+import type { FiveElements, FourPillars } from './types'
 
 const WUXING_MAP: Record<string, keyof FiveElements> = {
-  '木': 'wood',
-  '火': 'fire',
-  '土': 'earth',
-  '金': 'metal',
-  '水': 'water',
-};
+  木: 'wood',
+  火: 'fire',
+  土: 'earth',
+  金: 'metal',
+  水: 'water',
+}
 
 export function countFiveElements(fourPillars: FourPillars): FiveElements {
-  const counts: FiveElements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 };
+  const counts: FiveElements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 }
 
   for (const pillar of Object.values(fourPillars)) {
     // Heavenly Stem element
-    const stemElement = WUXING_MAP[pillar.tianGan.wuXing];
-    if (stemElement) counts[stemElement]++;
+    const stemElement = WUXING_MAP[pillar.tianGan.wuXing]
+    if (stemElement)
+      counts[stemElement]++
 
     // Earthly Branch element
-    const branchElement = WUXING_MAP[pillar.diZhi.wuXing];
-    if (branchElement) counts[branchElement]++;
+    const branchElement = WUXING_MAP[pillar.diZhi.wuXing]
+    if (branchElement)
+      counts[branchElement]++
   }
 
-  return counts;
+  return counts
 }
 ```
 
@@ -262,8 +264,8 @@ git commit -m "feat(bazi): implement five elements counter with tests"
 
 ```typescript
 // lib/bazi/__tests__/index.test.ts
-import { describe, it, expect } from 'vitest';
-import { calculateBazi } from '../index';
+import { describe, expect, it } from 'vitest'
+import { calculateBazi } from '../index'
 
 describe('calculateBazi', () => {
   it('calculates bazi for a known date', () => {
@@ -275,16 +277,16 @@ describe('calculateBazi', () => {
       hour: 14,
       minute: 10,
       gender: 1,
-    });
+    })
 
-    expect(result.bazi).toBe('戊寅 己未 己卯 辛未');
-    expect(result.zodiac).toBe('虎');
-    expect(result.dayMaster).toBe('己');
-    expect(result.fourPillars.year.ganZhi).toBe('戊寅');
-    expect(result.fourPillars.month.ganZhi).toBe('己未');
-    expect(result.fourPillars.day.ganZhi).toBe('己卯');
-    expect(result.fourPillars.hour.ganZhi).toBe('辛未');
-  });
+    expect(result.bazi).toBe('戊寅 己未 己卯 辛未')
+    expect(result.zodiac).toBe('虎')
+    expect(result.dayMaster).toBe('己')
+    expect(result.fourPillars.year.ganZhi).toBe('戊寅')
+    expect(result.fourPillars.month.ganZhi).toBe('己未')
+    expect(result.fourPillars.day.ganZhi).toBe('己卯')
+    expect(result.fourPillars.hour.ganZhi).toBe('辛未')
+  })
 
   it('includes five elements count', () => {
     const result = calculateBazi({
@@ -293,11 +295,11 @@ describe('calculateBazi', () => {
       day: 31,
       hour: 14,
       gender: 1,
-    });
+    })
 
-    expect(result.fiveElements).toBeDefined();
-    expect(result.fiveElements.earth).toBeGreaterThan(0);
-  });
+    expect(result.fiveElements).toBeDefined()
+    expect(result.fiveElements.earth).toBeGreaterThan(0)
+  })
 
   it('includes decade fortunes', () => {
     const result = calculateBazi({
@@ -306,12 +308,12 @@ describe('calculateBazi', () => {
       day: 31,
       hour: 14,
       gender: 1,
-    });
+    })
 
-    expect(result.decadeFortunes).toBeDefined();
-    expect(result.decadeFortunes.length).toBeGreaterThan(0);
-  });
-});
+    expect(result.decadeFortunes).toBeDefined()
+    expect(result.decadeFortunes.length).toBeGreaterThan(0)
+  })
+})
 ```
 
 **Step 2: Run test to verify it fails**
@@ -323,38 +325,39 @@ Expected: FAIL - module not found
 **Step 3: Write implementation**
 
 ```typescript
+import type { HeavenStem, SixtyCycle } from 'tyme4ts'
+import type { BaziInput, BaziResult, DecadeFortune, Pillar } from './types'
+import { calculateRelation, getShen } from 'cantian-tymext'
 // lib/bazi/index.ts
 import {
-  SolarTime,
-  LunarHour,
-  Gender,
   ChildLimit,
+  Gender,
+
+  LunarHour,
   LunarSect2EightCharProvider,
-  type SixtyCycle,
-  type HeavenStem,
-} from 'tyme4ts';
-import { calculateRelation, getShen } from 'cantian-tymext';
-import { countFiveElements } from './five-elements';
-import type { BaziInput, BaziResult, Pillar, DecadeFortune } from './types';
+
+  SolarTime
+} from 'tyme4ts'
+import { countFiveElements } from './five-elements'
 
 // Use "early zi hour = current day" algorithm (more common)
-LunarHour.provider = new LunarSect2EightCharProvider();
+LunarHour.provider = new LunarSect2EightCharProvider()
 
 export function calculateBazi(input: BaziInput): BaziResult {
-  const { year, month, day, hour, minute = 0, gender = 1 } = input;
+  const { year, month, day, hour, minute = 0, gender = 1 } = input
 
   // 1. Solar date -> SolarTime -> LunarHour -> EightChar
-  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0);
-  const lunarHour = solarTime.getLunarHour();
-  const eightChar = lunarHour.getEightChar();
+  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0)
+  const lunarHour = solarTime.getLunarHour()
+  const eightChar = lunarHour.getEightChar()
 
   // 2. Get four pillars
-  const yearPillar = eightChar.getYear();
-  const monthPillar = eightChar.getMonth();
-  const dayPillar = eightChar.getDay();
-  const hourPillar = eightChar.getHour();
+  const yearPillar = eightChar.getYear()
+  const monthPillar = eightChar.getMonth()
+  const dayPillar = eightChar.getDay()
+  const hourPillar = eightChar.getHour()
 
-  const me = dayPillar.getHeavenStem(); // Day Master
+  const me = dayPillar.getHeavenStem() // Day Master
 
   // 3. Build detailed pillar data
   const fourPillars = {
@@ -362,39 +365,41 @@ export function calculateBazi(input: BaziInput): BaziResult {
     month: buildPillarDetail(monthPillar, me, 'month'),
     day: buildPillarDetail(dayPillar, me, 'day'),
     hour: buildPillarDetail(hourPillar, me, 'hour'),
-  };
+  }
 
   // 4. Spirit Sha (gods)
-  const baziStr = eightChar.toString();
-  let gods: Record<string, string[]> = {};
+  const baziStr = eightChar.toString()
+  let gods: Record<string, string[]> = {}
   try {
-    gods = getShen(baziStr, gender);
-  } catch {
+    gods = getShen(baziStr, gender)
+  }
+  catch {
     // cantian-tymext may throw, ignore
   }
 
   // 5. Punishment/Clash/Combination relations
-  let relations: Record<string, unknown> = {};
+  let relations: Record<string, unknown> = {}
   try {
     relations = calculateRelation({
       year: yearPillar.toString(),
       month: monthPillar.toString(),
       day: dayPillar.toString(),
       hour: hourPillar.toString(),
-    });
-  } catch {
+    })
+  }
+  catch {
     // Ignore exception
   }
 
   // 6. Decade fortunes
-  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE;
-  const decadeFortunes = buildDecadeFortunes(solarTime, genderEnum, me);
+  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE
+  const decadeFortunes = buildDecadeFortunes(solarTime, genderEnum, me)
 
   // 7. Five elements count
-  const fiveElements = countFiveElements(fourPillars);
+  const fiveElements = countFiveElements(fourPillars)
 
   // 8. Basic info
-  const lunar = solarTime.getLunarDay();
+  const lunar = solarTime.getLunarDay()
 
   return {
     solar: `${year}-${month}-${day} ${hour}:${minute.toString().padStart(2, '0')}`,
@@ -407,7 +412,7 @@ export function calculateBazi(input: BaziInput): BaziResult {
     gods,
     decadeFortunes,
     relations,
-  };
+  }
 }
 
 function buildPillarDetail(
@@ -415,8 +420,8 @@ function buildPillarDetail(
   me: HeavenStem,
   position: 'year' | 'month' | 'day' | 'hour'
 ): Pillar {
-  const stem = pillar.getHeavenStem();
-  const branch = pillar.getEarthBranch();
+  const stem = pillar.getHeavenStem()
+  const branch = pillar.getEarthBranch()
 
   return {
     ganZhi: pillar.toString(),
@@ -430,13 +435,13 @@ function buildPillarDetail(
       name: branch.getName(),
       wuXing: branch.getElement().getName(),
       yinYang: branch.getYinYang().getName(),
-      cangGan: branch.getHideHeavenStems().map((h) => ({
+      cangGan: branch.getHideHeavenStems().map(h => ({
         name: h.getName(),
         shiShen: me.getTenStar(h).getName(),
       })),
     },
     naYin: pillar.getSound().getName(),
-  };
+  }
 }
 
 function buildDecadeFortunes(
@@ -445,11 +450,11 @@ function buildDecadeFortunes(
   _me: HeavenStem
 ): DecadeFortune[] {
   try {
-    const childLimit = ChildLimit.fromSolarTime(solarTime, gender);
-    const startFortune = childLimit.getStartDecadeFortune();
-    const fortunes: DecadeFortune[] = [];
+    const childLimit = ChildLimit.fromSolarTime(solarTime, gender)
+    const startFortune = childLimit.getStartDecadeFortune()
+    const fortunes: DecadeFortune[] = []
 
-    let current = startFortune;
+    let current = startFortune
     for (let i = 0; i < 10; i++) {
       fortunes.push({
         ganZhi: current.getSixtyCycle().toString(),
@@ -457,17 +462,18 @@ function buildDecadeFortunes(
         endYear: current.getEndLunarYear().getYear(),
         startAge: current.getStartAge(),
         endAge: current.getEndAge(),
-      });
-      current = current.next(1);
+      })
+      current = current.next(1)
     }
 
-    return fortunes;
-  } catch {
-    return [];
+    return fortunes
+  }
+  catch {
+    return []
   }
 }
 
-export type { BaziInput, BaziResult } from './types';
+export type { BaziInput, BaziResult } from './types'
 ```
 
 **Step 4: Run test to verify it passes**
@@ -498,30 +504,30 @@ Check current content: `lib/tripo.ts`
 
 ```typescript
 // lib/tripo.ts
-const TRIPO_API_BASE = 'https://api.tripo3d.ai/v2/openapi';
+const TRIPO_API_BASE = 'https://api.tripo3d.ai/v2/openapi'
 
 export interface TripoTask {
-  task_id: string;
-  status: 'queued' | 'running' | 'success' | 'failed';
-  progress?: number;
+  task_id: string
+  status: 'queued' | 'running' | 'success' | 'failed'
+  progress?: number
   output?: {
-    model: string;
-    rendered_image?: string;
-  };
+    model: string
+    rendered_image?: string
+  }
 }
 
 export interface TripoCreateTaskResponse {
-  code: number;
-  message?: string;
+  code: number
+  message?: string
   data: {
-    task_id: string;
-  };
+    task_id: string
+  }
 }
 
 export interface TripoGetTaskResponse {
-  code: number;
-  message?: string;
-  data: TripoTask;
+  code: number
+  message?: string
+  data: TripoTask
 }
 
 export const tripoClient = {
@@ -537,56 +543,56 @@ export const tripoClient = {
         prompt,
         model_version: 'v2.5-20250123',
       }),
-    });
+    })
 
-    const data: TripoCreateTaskResponse = await res.json();
+    const data: TripoCreateTaskResponse = await res.json()
 
     if (data.code !== 0) {
-      throw new Error(data.message || `Tripo API error: code ${data.code}`);
+      throw new Error(data.message || `Tripo API error: code ${data.code}`)
     }
 
-    return data.data.task_id;
+    return data.data.task_id
   },
 
   async getTask(taskId: string): Promise<TripoTask> {
     const res = await fetch(`${TRIPO_API_BASE}/task/${taskId}`, {
       headers: {
-        'Authorization': `Bearer ${process.env.TRIPO_API_KEY}`,
+        Authorization: `Bearer ${process.env.TRIPO_API_KEY}`,
       },
-    });
+    })
 
-    const data: TripoGetTaskResponse = await res.json();
+    const data: TripoGetTaskResponse = await res.json()
 
     if (data.code !== 0) {
-      throw new Error(data.message || `Tripo API error: code ${data.code}`);
+      throw new Error(data.message || `Tripo API error: code ${data.code}`)
     }
 
-    return data.data;
+    return data.data
   },
 
   async waitForCompletion(
     taskId: string,
-    options: { timeout: number; interval: number } = { timeout: 120_000, interval: 3_000 }
+    options: { timeout: number, interval: number } = { timeout: 120_000, interval: 3_000 }
   ): Promise<TripoTask> {
-    const startTime = Date.now();
+    const startTime = Date.now()
 
     while (Date.now() - startTime < options.timeout) {
-      const task = await this.getTask(taskId);
+      const task = await this.getTask(taskId)
 
       if (task.status === 'success') {
-        return task;
+        return task
       }
 
       if (task.status === 'failed') {
-        throw new Error('3D model generation failed');
+        throw new Error('3D model generation failed')
       }
 
-      await new Promise((resolve) => setTimeout(resolve, options.interval));
+      await new Promise(resolve => setTimeout(resolve, options.interval))
     }
 
-    throw new Error('3D model generation timeout');
+    throw new Error('3D model generation timeout')
   },
-};
+}
 ```
 
 **Step 3: Commit**
@@ -611,15 +617,15 @@ Check current content: `app/api/chat/route.ts`
 
 ```typescript
 // app/api/chat/route.ts
-import { createDeepSeek } from '@ai-sdk/deepseek';
-import { streamText, tool, convertToModelMessages, stepCountIs } from 'ai';
-import { z } from 'zod';
-import { calculateBazi } from '@/lib/bazi';
-import { tripoClient } from '@/lib/tripo';
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai'
+import { z } from 'zod'
+import { calculateBazi } from '@/lib/bazi'
+import { tripoClient } from '@/lib/tripo'
 
 const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY!,
-});
+})
 
 const analyzeBazi = tool({
   description: 'Analyze Bazi (Four Pillars of Destiny) based on birth date and time, returns complete chart data',
@@ -635,16 +641,17 @@ const analyzeBazi = tool({
       const result = calculateBazi({
         ...input,
         gender: (input.gender ?? 1) as 0 | 1,
-      });
-      return { success: true, data: result };
-    } catch (error) {
+      })
+      return { success: true, data: result }
+    }
+    catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Bazi calculation failed',
-      };
+      }
     }
   },
-});
+})
 
 const generateMascot = tool({
   description: 'Generate 3D mascot model based on description',
@@ -654,25 +661,26 @@ const generateMascot = tool({
   }),
   execute: async ({ prompt, style }) => {
     try {
-      const fullPrompt = style ? `${prompt}, ${style} style` : prompt;
-      const taskId = await tripoClient.createTask(fullPrompt);
+      const fullPrompt = style ? `${prompt}, ${style} style` : prompt
+      const taskId = await tripoClient.createTask(fullPrompt)
       const result = await tripoClient.waitForCompletion(taskId, {
         timeout: 120_000,
         interval: 3_000,
-      });
+      })
       return {
         success: true,
         modelUrl: result.output?.model,
         taskId,
-      };
-    } catch (error) {
+      }
+    }
+    catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : '3D model generation failed',
-      };
+      }
     }
   },
-});
+})
 
 const systemPrompt = `You are an expert Bazi fortune teller and mascot designer.
 
@@ -698,10 +706,10 @@ When analyzing Bazi, determine favorable elements based on:
   - Fire: Vermillion Bird, Phoenix - red/orange colors
   - Metal: White Tiger, Pixiu - white/gold colors
   - Earth: Yellow Dragon, auspicious beasts - yellow/brown colors
-- Style should be refined and compact, suitable as a desk ornament`;
+- Style should be refined and compact, suitable as a desk ornament`
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages } = await req.json()
 
   const result = streamText({
     model: deepseek('deepseek-chat'),
@@ -709,9 +717,9 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: { analyzeBazi, generateMascot },
     stopWhen: stepCountIs(10),
-  });
+  })
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse()
 }
 ```
 
