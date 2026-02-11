@@ -13,12 +13,16 @@ function createSession(title = '新对话'): Session {
   return { id: crypto.randomUUID(), title, createdAt: now, updatedAt: now }
 }
 
-const transport = new DefaultChatTransport({ api: '/api/chat' })
+const transport = new DefaultChatTransport({
+  api: '/api/chat',
+  body: () => ({
+    pendingTaskId: useChatStore.getState().pendingTaskId ?? undefined,
+  }),
+})
 
 export function useChatSession() {
   const [currentSession, setCurrentSession] = useState<Session | null>(null)
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([])
-  const setModelUrl = useChatStore(state => state.setModelUrl)
   const setCurrentSessionId = useChatStore(state => state.setCurrentSessionId)
   const resetStore = useChatStore(state => state.reset)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -47,27 +51,6 @@ export function useChatSession() {
     }, 300)
     return () => clearTimeout(saveTimerRef.current)
   }, [chat.messages])
-
-  // Detect modelUrl from generateMascot tool output
-  useEffect(() => {
-    const lastMsg = chat.messages.at(-1)
-    if (!lastMsg || lastMsg.role !== 'assistant') return
-
-    for (const part of lastMsg.parts) {
-      if (
-        part.type.startsWith('tool-')
-        && 'toolCallId' in part
-        && 'state' in part
-        && part.state === 'output-available'
-        && 'output' in part
-      ) {
-        const output = part.output as Record<string, unknown> | undefined
-        if (output?.success && typeof output.modelUrl === 'string') {
-          setModelUrl(output.modelUrl)
-        }
-      }
-    }
-  }, [chat.messages, setModelUrl])
 
   // Load latest session on mount
   useEffect(() => {
