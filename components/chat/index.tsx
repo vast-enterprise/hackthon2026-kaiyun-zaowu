@@ -23,8 +23,8 @@ export function Chat({ onModelReady: _onModelReady }: ChatProps) {
   }, [messages])
 
   return (
-    <div className="flex h-full flex-col">
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+    <div className="flex h-full flex-col overflow-hidden">
+      <ScrollArea ref={scrollRef} className="min-h-0 flex-1 p-4">
         {messages.length === 0
           ? (
               <ChatEmpty />
