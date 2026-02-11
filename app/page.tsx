@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Chat } from '@/components/chat'
 import { ModelViewer } from '@/components/model-viewer'
 import { OrderModal } from '@/components/order-modal'
+import { Sidebar } from '@/components/sidebar'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useChatStore } from '@/stores/chat-store'
@@ -11,16 +12,23 @@ import { useChatStore } from '@/stores/chat-store'
 export default function Home() {
   const { phase, modelUrl } = useChatStore()
   const [orderModalOpen, setOrderModalOpen] = useState(false)
+  const { currentSession, loadSession, newSession, ui: chatUI } = Chat()
 
   return (
     <main className="flex h-screen">
+      <Sidebar
+        currentSessionId={currentSession?.id ?? null}
+        onSelectSession={loadSession}
+        onNewSession={newSession}
+      />
+
       <div
         className={cn(
-          'h-full overflow-hidden transition-all duration-400 ease-out',
-          phase === 'chat' ? 'w-full' : 'w-[60%] border-r border-border',
+          'h-full min-w-0 flex-1 overflow-hidden transition-all duration-400 ease-out',
+          phase === 'split' && 'border-r border-border',
         )}
       >
-        <Chat />
+        {chatUI}
       </div>
 
       {phase === 'split' && modelUrl && (
