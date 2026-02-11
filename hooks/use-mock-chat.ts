@@ -84,6 +84,12 @@ export function useMockChat() {
           try {
             const parsed = JSON.parse(data)
 
+            // Handle model-ready outside of setMessages to avoid setState during render
+            if (parsed.type === 'model-ready') {
+              setTimeout(() => setModelUrl(parsed.url), 0)
+              continue
+            }
+
             setMessages((prev) => {
               const updated = [...prev]
               const lastMsg = updated[updated.length - 1]
@@ -123,9 +129,6 @@ export function useMockChat() {
                 else {
                   lastMsg.parts.push(toolPart)
                 }
-              }
-              else if (parsed.type === 'model-ready') {
-                setModelUrl(parsed.url)
               }
 
               return updated
