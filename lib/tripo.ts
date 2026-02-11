@@ -6,7 +6,7 @@ export interface TripoTask {
   status: 'queued' | 'running' | 'success' | 'failed'
   progress?: number
   output?: {
-    model: string
+    pbr_model: string
     rendered_image?: string
   }
 }

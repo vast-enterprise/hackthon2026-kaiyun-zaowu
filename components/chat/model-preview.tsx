@@ -10,6 +10,10 @@ interface ModelPreviewProps {
   taskId: string
 }
 
+function proxyUrl(url: string) {
+  return `/api/tripo/proxy?url=${encodeURIComponent(url)}`
+}
+
 export function ModelPreview({ taskId }: ModelPreviewProps) {
   const [task, setTask] = useState<TripoTask | null>(null)
   const setModelUrl = useChatStore(s => s.setModelUrl)
@@ -34,10 +38,13 @@ export function ModelPreview({ taskId }: ModelPreviewProps) {
         setTask(data)
 
         if (data.status === 'success') {
-          setPendingTaskId(null)
           clearInterval(interval)
-          if (data.output?.model)
-            setModelUrl(data.output.model)
+          // Guard: only set modelUrl if this task is still the active one
+          // (resetStore() clears pendingTaskId on session switch)
+          if (data.output?.pbr_model && useChatStore.getState().pendingTaskId === taskId) {
+            setModelUrl(proxyUrl(data.output.pbr_model))
+          }
+          setPendingTaskId(null)
         }
         if (data.status === 'failed') {
           setPendingTaskId(null)
@@ -95,7 +102,11 @@ export function ModelPreview({ taskId }: ModelPreviewProps) {
               )}
         </div>
         <div className="flex justify-center">
-          <Button size="sm" onClick={() => task.output?.model && setModelUrl(task.output.model)}>
+          <Button size="sm" onClick={() => {
+          if (task.output?.pbr_model) {
+            setModelUrl(proxyUrl(task.output.pbr_model))
+          }
+        }}>
             查看 3D 模型
           </Button>
         </div>

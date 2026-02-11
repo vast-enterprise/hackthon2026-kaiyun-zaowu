@@ -68,30 +68,37 @@ export function useChatSession() {
         const session = createSession()
         setCurrentSession(session)
         setCurrentSessionId(session.id)
+        const { saveSession: save } = await import('@/lib/persistence/chat-db')
+        await save(session, [])
       }
     }
     init()
   }, [setCurrentSessionId])
 
   const loadSession = useCallback(async (sessionId: string) => {
-    const { getSessionMessages, listSessions } = await import('@/lib/persistence/chat-db')
+    // Reset store first to clear modelUrl/phase before new messages render
+    resetStore()
+    const { getSessionMessages, listSessions, saveSession } = await import('@/lib/persistence/chat-db')
     const sessions = await listSessions()
     const session = sessions.find(s => s.id === sessionId)
     if (!session)
       return
     const msgs = await getSessionMessages(sessionId)
+    const updated = { ...session, updatedAt: Date.now() }
+    await saveSession(updated, msgs)
+    setCurrentSessionId(updated.id)
+    setCurrentSession(updated)
     setInitialMessages(msgs)
-    setCurrentSession(session)
-    setCurrentSessionId(session.id)
-    resetStore()
   }, [setCurrentSessionId, resetStore])
 
-  const newSession = useCallback(() => {
-    const session = createSession()
-    setInitialMessages([])
-    setCurrentSession(session)
-    setCurrentSessionId(session.id)
+  const newSession = useCallback(async () => {
     resetStore()
+    const session = createSession()
+    setCurrentSessionId(session.id)
+    setCurrentSession(session)
+    setInitialMessages([])
+    const { saveSession } = await import('@/lib/persistence/chat-db')
+    await saveSession(session, [])
   }, [setCurrentSessionId, resetStore])
 
   return {

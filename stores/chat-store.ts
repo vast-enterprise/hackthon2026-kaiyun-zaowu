@@ -29,5 +29,5 @@ export const useChatStore = create<ChatState>(set => ({
   setSidebarOpen: open => set({ sidebarOpen: open }),
   setPendingTaskId: id => set({ pendingTaskId: id }),
   toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
-  reset: () => set({ phase: 'chat', modelUrl: null, pendingTaskId: null }),
+  reset: () => set({ phase: 'chat', modelUrl: null, pendingTaskId: null, sidebarOpen: true }),
 }))

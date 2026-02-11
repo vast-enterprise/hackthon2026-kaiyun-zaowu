@@ -1,11 +1,19 @@
 // components/chat/index.tsx
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { useChatSession } from '@/hooks/use-chat-session'
-import { ChatEmpty } from './chat-empty'
-import { ChatInput } from './chat-input'
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation'
+import {
+  PromptInput,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from '@/components/ai-elements/prompt-input'
 import { ChatMessage } from './chat-message'
 
 export function Chat() {
@@ -14,23 +22,13 @@ export function Chat() {
     sendMessage,
     regenerate,
     status,
+    stop,
     currentSession,
     loadSession,
     newSession,
   } = useChatSession()
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   const isLoading = status === 'submitted' || status === 'streaming'
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
-  }, [messages])
-
-  const handleSend = (text: string) => {
-    sendMessage({ text })
-  }
 
   return {
     currentSession,
@@ -38,23 +36,44 @@ export function Chat() {
     newSession,
     ui: (
       <div className="flex h-full flex-col overflow-hidden">
-        <ScrollArea ref={scrollRef} className="min-h-0 flex-1 p-4">
-          {messages.length === 0
-            ? <ChatEmpty />
-            : messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isStreaming={isLoading && index === messages.length - 1}
-                  onRegenerate={message.role === 'assistant' ? regenerate : undefined}
-                />
-              ))}
-        </ScrollArea>
+        <Conversation className="min-h-0 flex-1">
+          <ConversationContent>
+            {messages.length === 0
+              ? (
+                  <ConversationEmptyState
+                    title="开始对话"
+                    description="输入你的出生日期，开始八字分析"
+                  />
+                )
+              : messages.map((message, index) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isLast={index === messages.length - 1}
+                    isStreaming={isLoading}
+                    onRegenerate={message.role === 'assistant' ? regenerate : undefined}
+                  />
+                ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+
         <div className="border-t border-border p-4">
-          <ChatInput
-            onSend={handleSend}
-            isLoading={isLoading}
-          />
+          <PromptInput
+            onSubmit={({ text }) => {
+              if (text.trim()) {
+                sendMessage({ text })
+              }
+            }}
+          >
+            <PromptInputTextarea
+              placeholder="输入您的出生日期，开始八字分析..."
+            />
+            <PromptInputFooter>
+              <div />
+              <PromptInputSubmit status={status} onStop={stop} />
+            </PromptInputFooter>
+          </PromptInput>
         </div>
       </div>
     ),

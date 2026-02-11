@@ -17,11 +17,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: SidebarProps) {
-  const { sidebarOpen, toggleSidebar, phase } = useChatStore()
+  const { sidebarOpen, toggleSidebar } = useChatStore()
   const [sessions, setSessions] = useState<Session[]>([])
 
-  // Auto-collapse in split mode
-  const collapsed = !sidebarOpen || phase === 'split'
+  const collapsed = !sidebarOpen
 
   const loadSessions = useCallback(async () => {
     const { listSessions } = await import('@/lib/persistence/chat-db')

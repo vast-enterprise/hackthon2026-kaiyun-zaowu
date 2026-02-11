@@ -14,11 +14,6 @@ interface SessionItemProps {
   onDelete: () => void
 }
 
-function formatDate(timestamp: number): string {
-  const d = new Date(timestamp)
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-}
-
 export function SessionItem({ session, isActive, collapsed, onClick, onDelete }: SessionItemProps) {
   if (collapsed) {
     return (
@@ -46,7 +41,6 @@ export function SessionItem({ session, isActive, collapsed, onClick, onDelete }:
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm">{session.title}</p>
-        <p className="text-[10px] text-muted-foreground">{formatDate(session.updatedAt)}</p>
       </div>
       <Button
         variant="ghost"
