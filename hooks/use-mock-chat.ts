@@ -90,6 +90,11 @@ export function useMockChat() {
               continue
             }
 
+            // Accumulate text content outside setState to avoid double execution in StrictMode
+            if (parsed.type === 'text-delta') {
+              textContent += parsed.content
+            }
+
             setMessages((prev) => {
               const updated = [...prev]
               const lastMsg = updated[updated.length - 1]
@@ -97,7 +102,6 @@ export function useMockChat() {
                 return prev
 
               if (parsed.type === 'text-delta') {
-                textContent += parsed.content
                 lastMsg.content = textContent
                 const textPartIndex = lastMsg.parts.findIndex(p => p.type === 'text')
                 if (textPartIndex >= 0) {
