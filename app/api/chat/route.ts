@@ -1,13 +1,13 @@
 // app/api/chat/route.ts
-import { createDeepSeek } from '@ai-sdk/deepseek';
-import { streamText, tool, convertToModelMessages, stepCountIs } from 'ai';
-import { z } from 'zod';
-import { calculateBazi } from '@/lib/bazi';
-import { tripoClient } from '@/lib/tripo';
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai'
+import { z } from 'zod'
+import { calculateBazi } from '@/lib/bazi'
+import { tripoClient } from '@/lib/tripo'
 
 const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY!,
-});
+})
 
 const analyzeBazi = tool({
   description: 'Analyze Bazi (Four Pillars of Destiny) based on birth date and time, returns complete chart data',
@@ -26,16 +26,17 @@ const analyzeBazi = tool({
         day,
         hour,
         gender: (gender ?? 1) as 0 | 1,
-      });
-      return { success: true, data: result };
-    } catch (error) {
+      })
+      return { success: true, data: result }
+    }
+    catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Bazi calculation failed',
-      };
+      }
     }
   },
-});
+})
 
 const generateMascot = tool({
   description: 'Generate 3D mascot model based on description',
@@ -45,25 +46,26 @@ const generateMascot = tool({
   }),
   execute: async ({ prompt, style }) => {
     try {
-      const fullPrompt = style ? `${prompt}, ${style} style` : prompt;
-      const taskId = await tripoClient.createTask(fullPrompt);
+      const fullPrompt = style ? `${prompt}, ${style} style` : prompt
+      const taskId = await tripoClient.createTask(fullPrompt)
       const result = await tripoClient.waitForCompletion(taskId, {
         timeout: 120_000,
         interval: 3_000,
-      });
+      })
       return {
         success: true,
         modelUrl: result.output?.model,
         taskId,
-      };
-    } catch (error) {
+      }
+    }
+    catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : '3D model generation failed',
-      };
+      }
     }
   },
-});
+})
 
 const systemPrompt = `You are an expert Bazi fortune teller and mascot designer.
 
@@ -89,10 +91,10 @@ When analyzing Bazi, determine favorable elements based on:
   - Fire: Vermillion Bird, Phoenix - red/orange colors
   - Metal: White Tiger, Pixiu - white/gold colors
   - Earth: Yellow Dragon, auspicious beasts - yellow/brown colors
-- Style should be refined and compact, suitable as a desk ornament`;
+- Style should be refined and compact, suitable as a desk ornament`
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages } = await req.json()
 
   const result = streamText({
     model: deepseek('deepseek-chat'),
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages),
     tools: { analyzeBazi, generateMascot },
     stopWhen: stepCountIs(10),
-  });
+  })
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse()
 }

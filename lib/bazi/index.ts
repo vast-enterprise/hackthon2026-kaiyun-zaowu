@@ -1,34 +1,35 @@
+import type { HeavenStem, SixtyCycle } from 'tyme4ts'
+import type { BaziInput, BaziResult, DecadeFortune, Pillar } from './types'
+import { calculateRelation, getShen } from 'cantian-tymext'
 import {
-  SolarTime,
-  LunarHour,
-  Gender,
   ChildLimit,
+  Gender,
+
+  LunarHour,
   LunarSect2EightCharProvider,
-  type SixtyCycle,
-  type HeavenStem,
-} from 'tyme4ts';
-import { calculateRelation, getShen } from 'cantian-tymext';
-import { countFiveElements } from './five-elements';
-import type { BaziInput, BaziResult, Pillar, DecadeFortune } from './types';
+
+  SolarTime,
+} from 'tyme4ts'
+import { countFiveElements } from './five-elements'
 
 // Use "early zi hour = current day" algorithm (more common)
-LunarHour.provider = new LunarSect2EightCharProvider();
+LunarHour.provider = new LunarSect2EightCharProvider()
 
 export function calculateBazi(input: BaziInput): BaziResult {
-  const { year, month, day, hour, minute = 0, gender = 1 } = input;
+  const { year, month, day, hour, minute = 0, gender = 1 } = input
 
   // 1. Solar date -> SolarTime -> LunarHour -> EightChar
-  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0);
-  const lunarHour = solarTime.getLunarHour();
-  const eightChar = lunarHour.getEightChar();
+  const solarTime = SolarTime.fromYmdHms(year, month, day, hour, minute, 0)
+  const lunarHour = solarTime.getLunarHour()
+  const eightChar = lunarHour.getEightChar()
 
   // 2. Get four pillars
-  const yearPillar = eightChar.getYear();
-  const monthPillar = eightChar.getMonth();
-  const dayPillar = eightChar.getDay();
-  const hourPillar = eightChar.getHour();
+  const yearPillar = eightChar.getYear()
+  const monthPillar = eightChar.getMonth()
+  const dayPillar = eightChar.getDay()
+  const hourPillar = eightChar.getHour()
 
-  const me = dayPillar.getHeavenStem(); // Day Master
+  const me = dayPillar.getHeavenStem() // Day Master
 
   // 3. Build detailed pillar data
   const fourPillars = {
@@ -36,39 +37,41 @@ export function calculateBazi(input: BaziInput): BaziResult {
     month: buildPillarDetail(monthPillar, me, 'month'),
     day: buildPillarDetail(dayPillar, me, 'day'),
     hour: buildPillarDetail(hourPillar, me, 'hour'),
-  };
+  }
 
   // 4. Spirit Sha (gods)
-  const baziStr = eightChar.toString();
-  let gods: Record<string, string[]> = {};
+  const baziStr = eightChar.toString()
+  let gods: Record<string, string[]> = {}
   try {
-    gods = getShen(baziStr, gender);
-  } catch {
+    gods = getShen(baziStr, gender)
+  }
+  catch {
     // cantian-tymext may throw, ignore
   }
 
   // 5. Punishment/Clash/Combination relations
-  let relations: Record<string, unknown> = {};
+  let relations: Record<string, unknown> = {}
   try {
     relations = calculateRelation({
       year: yearPillar.toString(),
       month: monthPillar.toString(),
       day: dayPillar.toString(),
       hour: hourPillar.toString(),
-    });
-  } catch {
+    })
+  }
+  catch {
     // Ignore exception
   }
 
   // 6. Decade fortunes
-  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE;
-  const decadeFortunes = buildDecadeFortunes(solarTime, genderEnum);
+  const genderEnum = gender === 1 ? Gender.MALE : Gender.FEMALE
+  const decadeFortunes = buildDecadeFortunes(solarTime, genderEnum)
 
   // 7. Five elements count
-  const fiveElements = countFiveElements(fourPillars);
+  const fiveElements = countFiveElements(fourPillars)
 
   // 8. Basic info
-  const lunar = lunarHour.getLunarDay();
+  const lunar = lunarHour.getLunarDay()
 
   return {
     solar: `${year}-${month}-${day} ${hour}:${minute.toString().padStart(2, '0')}`,
@@ -81,16 +84,16 @@ export function calculateBazi(input: BaziInput): BaziResult {
     gods,
     decadeFortunes,
     relations,
-  };
+  }
 }
 
 function buildPillarDetail(
   pillar: SixtyCycle,
   me: HeavenStem,
-  position: 'year' | 'month' | 'day' | 'hour'
+  position: 'year' | 'month' | 'day' | 'hour',
 ): Pillar {
-  const stem = pillar.getHeavenStem();
-  const branch = pillar.getEarthBranch();
+  const stem = pillar.getHeavenStem()
+  const branch = pillar.getEarthBranch()
 
   return {
     ganZhi: pillar.toString(),
@@ -105,27 +108,27 @@ function buildPillarDetail(
       wuXing: branch.getElement().getName(),
       yinYang: branch.getYinYang() === 1 ? '阳' : '阴',
       cangGan: branch.getHideHeavenStems().map((hideHeavenStem) => {
-        const h = hideHeavenStem.getHeavenStem();
+        const h = hideHeavenStem.getHeavenStem()
         return {
           name: h.getName(),
           shiShen: me.getTenStar(h).getName(),
-        };
+        }
       }),
     },
     naYin: pillar.getSound().getName(),
-  };
+  }
 }
 
 function buildDecadeFortunes(
   solarTime: SolarTime,
-  gender: Gender
+  gender: Gender,
 ): DecadeFortune[] {
   try {
-    const childLimit = ChildLimit.fromSolarTime(solarTime, gender);
-    const startFortune = childLimit.getStartDecadeFortune();
-    const fortunes: DecadeFortune[] = [];
+    const childLimit = ChildLimit.fromSolarTime(solarTime, gender)
+    const startFortune = childLimit.getStartDecadeFortune()
+    const fortunes: DecadeFortune[] = []
 
-    let current = startFortune;
+    let current = startFortune
     for (let i = 0; i < 10; i++) {
       fortunes.push({
         ganZhi: current.getSixtyCycle().toString(),
@@ -133,14 +136,15 @@ function buildDecadeFortunes(
         endYear: current.getEndLunarYear().getYear(),
         startAge: current.getStartAge(),
         endAge: current.getEndAge(),
-      });
-      current = current.next(1);
+      })
+      current = current.next(1)
     }
 
-    return fortunes;
-  } catch {
-    return [];
+    return fortunes
+  }
+  catch {
+    return []
   }
 }
 
-export type { BaziInput, BaziResult } from './types';
+export type { BaziInput, BaziResult } from './types'

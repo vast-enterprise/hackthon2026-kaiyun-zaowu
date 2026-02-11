@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { countFiveElements } from '../five-elements';
-import type { FourPillars } from '../types';
+import type { FourPillars } from '../types'
+import { describe, expect, it } from 'vitest'
+import { countFiveElements } from '../five-elements'
 
 describe('countFiveElements', () => {
   it('counts five elements from four pillars', () => {
@@ -29,16 +29,16 @@ describe('countFiveElements', () => {
         diZhi: { name: '未', wuXing: '土', yinYang: '阴', cangGan: [] },
         naYin: '路旁土',
       },
-    };
+    }
 
-    const result = countFiveElements(fourPillars);
+    const result = countFiveElements(fourPillars)
 
     expect(result).toEqual({
-      wood: 2,  // 寅 + 卯
+      wood: 2, // 寅 + 卯
       fire: 0,
       earth: 5, // 戊 + 未 + 己 + 己 + 未
       metal: 1, // 辛
       water: 0,
-    });
-  });
-});
+    })
+  })
+})
