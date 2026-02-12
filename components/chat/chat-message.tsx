@@ -99,7 +99,7 @@ export function ChatMessage({ message, isLast, isStreaming, onRegenerate, onSend
               }
             }
 
-            // OptionsButtons for presentOptions
+            // OptionsButtons for presentOptions (execute returns options, hasToolCall stops the loop)
             if (toolName === 'presentOptions' && state === 'output-available' && output?.options) {
               return (
                 <OptionsButtons

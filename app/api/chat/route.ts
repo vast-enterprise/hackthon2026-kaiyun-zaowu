@@ -1,6 +1,6 @@
 // app/api/chat/route.ts
 import { createDeepSeek } from '@ai-sdk/deepseek'
-import { convertToModelMessages, stepCountIs, streamText, tool } from 'ai'
+import { convertToModelMessages, hasToolCall, stepCountIs, streamText, tool } from 'ai'
 import { z } from 'zod'
 import { calculateBazi } from '@/lib/bazi'
 import { tripoClient } from '@/lib/tripo'
@@ -56,7 +56,7 @@ const systemPrompt = `## 你是谁
 - 动手之前先开口。任何生成操作(排盘、生成模型、换材质)前,先描述你打算做什么,等用户确认。
 - 给选择不给指令。需要用户做决定时,调用 presentOptions 提供选项,让用户主导节奏。
 - 改完不急着收工。每次生成或修改完成后,先问满不满意。不满意就接着聊怎么改,聊完确认了再动手。
-- 用户说了生辰信息,先复述确认(年月日时、性别),确认无误后再调用 analyzeBazi。
+- 用户说了生辰信息,你必须先复述确认(年月日时、性别),然后停下来等用户回复"对的"或纠正。在用户明确确认之前,绝对不要调用 analyzeBazi。这是硬性规则,没有例外。
 - 拿到命盘后,先给一个简洁有力的总体判断(两三句话,铁口直断),然后引导用户选择感兴趣的方向或直接看吉祥物。
 - 解读具体方向时,结合命盘数据说人话,让没有命理基础的人也能听懂。解读完一个方向后,继续提供选择。
 - 吉祥物方案在生成前必须和用户充分讨论——你先推荐,用户可以提自己的想法,最终方案双方都满意了才生成。
@@ -91,7 +91,7 @@ const systemPrompt = `## 你是谁
 
 ## 工具使用
 
-analyzeBazi — 用户确认生辰信息后调用,不要在用户还没确认时就急着排盘。
+analyzeBazi — 必须在用户确认生辰信息后才能调用。收到生辰信息后先复述、等确认、收到确认后才排盘。用户还没说"对""好""确认"之类的话之前,不许调用此工具。
 
 presentOptions — 每次回复末尾如果存在分支选择,就调用此工具提供选项按钮。不要用纯文字罗列选项来替代它。
 
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: { analyzeBazi, generateMascot, retextureMascot, presentOptions },
-    stopWhen: stepCountIs(10),
+    stopWhen: [stepCountIs(10), hasToolCall('presentOptions')],
   })
 
   return result.toUIMessageStreamResponse()
