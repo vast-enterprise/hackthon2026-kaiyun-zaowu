@@ -1,7 +1,6 @@
 // components/chat/index.tsx
 'use client'
 
-import { useChatSession } from '@/hooks/use-chat-session'
 import {
   Conversation,
   ConversationContent,
@@ -14,6 +13,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from '@/components/ai-elements/prompt-input'
+import { useChatSession } from '@/hooks/use-chat-session'
 import { ChatMessage } from './chat-message'
 
 export function Chat() {
@@ -52,6 +52,7 @@ export function Chat() {
                     isLast={index === messages.length - 1}
                     isStreaming={isLoading}
                     onRegenerate={message.role === 'assistant' ? regenerate : undefined}
+                    onSendMessage={text => sendMessage({ text })}
                   />
                 ))}
           </ConversationContent>
