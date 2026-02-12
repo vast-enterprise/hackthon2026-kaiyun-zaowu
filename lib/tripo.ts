@@ -87,4 +87,44 @@ export const tripoClient = {
 
     throw new Error('3D model generation timeout')
   },
+
+  async retextureModel(
+    originalTaskId: string,
+    options?: {
+      prompt?: string
+      textureSeed?: number
+      textureQuality?: 'standard' | 'detailed'
+    },
+  ): Promise<string> {
+    const body: Record<string, unknown> = {
+      type: 'texture_model',
+      original_model_task_id: originalTaskId,
+      texture: true,
+      pbr: true,
+      texture_quality: options?.textureQuality ?? 'standard',
+    }
+    if (options?.prompt) {
+      body.texture_prompt = { text: options.prompt }
+    }
+    if (options?.textureSeed != null) {
+      body.texture_seed = options.textureSeed
+    }
+
+    const res = await fetch(`${TRIPO_API_BASE}/task`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.TRIPO_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+    })
+
+    const data: TripoCreateTaskResponse = await res.json()
+
+    if (data.code !== 0) {
+      throw new Error(data.message || `Tripo API error: code ${data.code}`)
+    }
+
+    return data.data.task_id
+  },
 }
