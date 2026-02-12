@@ -3,6 +3,7 @@
 
 import type { UIMessage } from 'ai'
 import type { BaziResult } from '@/lib/bazi/types'
+import { CopyIcon, RefreshCwIcon } from 'lucide-react'
 import {
   Message,
   MessageAction,
@@ -20,13 +21,15 @@ import {
   Tool,
   ToolHeader,
 } from '@/components/ai-elements/tool'
-import { CopyIcon, RefreshCwIcon } from 'lucide-react'
 import { BaguaCard } from './bagua-card'
 import { ModelPreview } from './model-preview'
+import { OptionsButtons } from './options-buttons'
 
 const TOOL_TITLES: Record<string, string> = {
   analyzeBazi: '分析八字',
   generateMascot: '生成 3D 模型',
+  retextureMascot: '重新生成纹理',
+  presentOptions: '选择',
 }
 
 interface ChatMessageProps {
@@ -34,9 +37,10 @@ interface ChatMessageProps {
   isLast?: boolean
   isStreaming?: boolean
   onRegenerate?: () => void
+  onSendMessage?: (text: string) => void
 }
 
-export function ChatMessage({ message, isLast, isStreaming, onRegenerate }: ChatMessageProps) {
+export function ChatMessage({ message, isLast, isStreaming, onRegenerate, onSendMessage }: ChatMessageProps) {
   const textContent = message.parts
     .filter((p): p is Extract<typeof p, { type: 'text' }> => p.type === 'text')
     .map(p => p.text)
@@ -90,6 +94,25 @@ export function ChatMessage({ message, isLast, isStreaming, onRegenerate }: Chat
 
             // ModelPreview for generateMascot
             if (toolName === 'generateMascot') {
+              if (state === 'output-available' && output?.taskId) {
+                return <ModelPreview key={`tool-${message.id}-${index}`} taskId={output.taskId as string} />
+              }
+            }
+
+            // OptionsButtons for presentOptions
+            if (toolName === 'presentOptions' && state === 'output-available' && output?.options) {
+              return (
+                <OptionsButtons
+                  key={`tool-${message.id}-${index}`}
+                  options={output.options as { label: string, description?: string }[]}
+                  onSelect={(label) => { onSendMessage?.(label) }}
+                  disabled={!isLast || isStreaming}
+                />
+              )
+            }
+
+            // ModelPreview for retextureMascot (same rendering as generateMascot)
+            if (toolName === 'retextureMascot') {
               if (state === 'output-available' && output?.taskId) {
                 return <ModelPreview key={`tool-${message.id}-${index}`} taskId={output.taskId as string} />
               }
