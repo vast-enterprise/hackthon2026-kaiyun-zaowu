@@ -36,3 +36,4 @@ AI 驱动的八字命理分析与 3D 吉祥物生成 Web 应用（Next.js 16 + D
 | `reference/coding-conventions.md` | 编码规范：ESLint/TypeScript/pnpm/shadcn/CSS/组件编写模式 |
 | `reference/git-conventions.md` | Git 规范：Conventional Commits 格式、分支策略、scope 对照表 |
 | `reference/bazi-data-types.md` | 八字数据类型：BaziInput/BaziResult 类型层级、字段约束、源文件索引 |
+| `reference/tripo-api.md` | Tripo API 参考：端点、任务类型（text/image/multiview_to_model、纹理/风格化/动画/转换）、请求响应格式、本项目集成方式 |

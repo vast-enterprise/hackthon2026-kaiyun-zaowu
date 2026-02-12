@@ -28,7 +28,8 @@
 4. **吉祥物生成** - AI 调用 `generateMascot` 工具, 非阻塞提交 Tripo 任务返回 taskId
 5. **异步轮询** - `components/chat/model-preview.tsx` (`ModelPreview`) 每 3 秒轮询任务状态, 显示进度条
 6. **分屏预览** - 模型就绪后自动切换分屏布局, 左侧聊天 + 右侧 `components/model-viewer/index.tsx` (`ModelViewer`) 3D 查看器
-7. **下单打印** - 点击"下单打印"按钮弹出 `components/order-modal/index.tsx` (`OrderModal`), 调用 Shop 中台 API
+7. **纹理调整** - 用户不满意可通过 `retextureMascot` 工具重新生成纹理（保留造型），前端复用 `ModelPreview` 轮询
+8. **下单打印** - 点击"下单打印"按钮弹出 `components/order-modal/index.tsx` (`OrderModal`), 调用 Shop 中台 API
 
 ## 4. 目录结构
 
@@ -45,7 +46,7 @@ app/
       task/[id]/route.ts        # 任务状态查询代理
 components/
   ai-elements/                  # Vercel AI Elements 组件 (Conversation/Message/PromptInput/Reasoning/Tool)
-  chat/                         # 聊天业务组件 (Chat/ChatMessage/BaguaCard/ModelPreview)
+  chat/                         # 聊天业务组件 (Chat/ChatMessage/BaguaCard/ModelPreview/OptionsButtons)
   model-viewer/                 # React Three Fiber 3D 查看器
   order-modal/                  # 订单弹窗 [表单未实现]
   sidebar/                      # 会话列表侧边栏 + 主题切换
@@ -57,7 +58,7 @@ stores/
 lib/
   bazi/                         # 八字计算 (types/colors/five-elements/index)
   persistence/chat-db.ts        # IndexedDB 数据库操作
-  tripo.ts                      # Tripo API 客户端 (createTask/getTask/waitForCompletion)
+  tripo.ts                      # Tripo API 客户端 (createTask/getTask/waitForCompletion/retextureModel)
   deepseek.ts                   # DeepSeek 客户端骨架 [未实现]
   shop.ts                       # Shop 中台客户端骨架 [未实现]
   utils.ts                      # cn() 类名合并工具

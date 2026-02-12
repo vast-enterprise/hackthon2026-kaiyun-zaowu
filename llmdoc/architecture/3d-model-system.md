@@ -7,8 +7,8 @@
 
 ## 2. 核心组件
 
-- `lib/tripo.ts` (`tripoClient`, `createTask`, `getTask`, `waitForCompletion`, `TripoTask`): Tripo API 客户端，封装任务创建、状态查询和服务端轮询等待，使用模型版本 `v2.5-20250123`，API 端点 `https://api.tripo3d.ai/v2/openapi`。
-- `app/api/chat/route.ts` (`generateMascot` tool): AI 工具定义，接收 prompt/style 参数，调用 `tripoClient.createTask()` 创建异步任务，通过 `pendingTaskId` 守卫防止重复提交。
+- `lib/tripo.ts` (`tripoClient`, `createTask`, `getTask`, `waitForCompletion`, `retextureModel`, `TripoTask`): Tripo API 客户端，封装任务创建、纹理重生成、状态查询和服务端轮询等待，使用模型版本 `v2.5-20250123`，API 端点 `https://api.tripo3d.ai/v2/openapi`。
+- `app/api/chat/route.ts` (`generateMascot` tool, `retextureMascot` tool): AI 工具定义。`generateMascot` 接收 prompt/style 参数，调用 `tripoClient.createTask()` 创建异步任务；`retextureMascot` 接收 taskId/prompt/textureQuality 参数，调用 `tripoClient.retextureModel()` 重新生成纹理。两者均通过 `pendingTaskId` 守卫防止重复提交。
 - `app/api/tripo/task/[id]/route.ts` (`GET`): 任务状态查询代理路由，隐藏 TRIPO_API_KEY，使用 Next.js 16 动态路由参数 (`params: Promise`)。
 - `app/api/tripo/proxy/route.ts` (`GET`): 模型文件代理路由，转发 Tripo 返回的外部 GLB URL，设置 `Content-Type: model/gltf-binary` 和 `Cache-Control: public, max-age=86400`。
 - `components/chat/model-preview.tsx` (`ModelPreview`, `proxyUrl`): 前端轮询组件，每 3 秒调用任务状态 API，管理 pending/running/success/failed 四种状态的 UI 渲染，包含竞态条件守卫机制。
@@ -18,10 +18,10 @@
 
 ## 3. 执行流（LLM 检索图谱）
 
-- **1. 触发生成:** 用户发送消息 -> `hooks/use-chat-session.ts` 通过自定义 Transport 发送请求到 `app/api/chat/route.ts:73-109`，请求体携带 `pendingTaskId`。
-- **2. AI 工具调用:** `streamText` 调用 DeepSeek 模型，AI 决定调用 `generateMascot` 工具 (`app/api/chat/route.ts:76-99`)。工具先检查 `pendingTaskId` 是否已存在（防重复守卫），然后调用 `tripoClient.createTask(prompt)` (`lib/tripo.ts:29-50`)。
+- **1. 触发生成:** 用户发送消息 -> `hooks/use-chat-session.ts` 通过自定义 Transport 发送请求到 `app/api/chat/route.ts:106-163`，请求体携带 `pendingTaskId`。
+- **2. AI 工具调用:** `streamText` 调用 DeepSeek 模型，AI 决定调用 `generateMascot` 或 `retextureMascot` 工具。工具先检查 `pendingTaskId` 是否已存在（防重复守卫），然后调用 `tripoClient.createTask(prompt)` 或 `tripoClient.retextureModel(taskId, options)` (`lib/tripo.ts:29-50` / `lib/tripo.ts:91-129`)。
 - **3. 任务创建:** Tripo API 返回 `task_id`，工具返回 `{ success: true, taskId, status: 'pending' }` 到前端流式响应。**此时不阻塞**，AI 继续生成文字解释吉祥物含义。
-- **4. 前端渲染:** `ChatMessage` 检测到 `tool-generateMascot` part 且 `state === 'output-available'`，渲染 `ModelPreview` 组件 (`components/chat/model-preview.tsx:17-143`)。
+- **4. 前端渲染:** `ChatMessage` 检测到 `tool-generateMascot` 或 `tool-retextureMascot` part 且 `state === 'output-available'`，渲染 `ModelPreview` 组件 (`components/chat/model-preview.tsx:17-143`)。
 - **5. 轮询启动:** `ModelPreview` 的 useEffect 立即调用 `setPendingTaskId(taskId)` 标记任务活跃，然后立即首次轮询 + 每 3 秒 setInterval 轮询 `GET /api/tripo/task/${taskId}` (`app/api/tripo/task/[id]/route.ts:3-18`)。
 - **6. 状态代理:** API 路由调用 `tripoClient.getTask(id)` (`lib/tripo.ts:52-66`) 查询 Tripo API，返回 `{ status, progress, output }` 给前端。
 - **7. 进度更新:** `ModelPreview` 根据返回的 `task.status` 渲染三种 UI：`pending/running`（进度条）、`success`（预览图+按钮）、`failed`（错误提示）。
