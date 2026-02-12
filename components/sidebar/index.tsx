@@ -92,11 +92,16 @@ export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: Sid
       <div className={cn('border-t border-sidebar-border p-2', collapsed && 'flex justify-center')}>
         {collapsed
           ? (
-              <Button variant="ghost" size="icon" className="size-8" onClick={() => {
-                document.documentElement.classList.toggle('dark')
-                const isDark = document.documentElement.classList.contains('dark')
-                localStorage.setItem('theme', isDark ? 'dark' : 'light')
-              }}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => {
+                  document.documentElement.classList.toggle('dark')
+                  const isDark = document.documentElement.classList.contains('dark')
+                  localStorage.setItem('theme', isDark ? 'dark' : 'light')
+                }}
+              >
                 <span className="text-xs">🌓</span>
               </Button>
             )

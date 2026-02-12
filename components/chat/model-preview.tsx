@@ -107,11 +107,14 @@ export function ModelPreview({ taskId }: ModelPreviewProps) {
               )}
         </div>
         <div className="flex justify-center">
-          <Button size="sm" onClick={() => {
-          if (task.output?.pbr_model) {
-            setModelUrl(proxyUrl(task.output.pbr_model))
-          }
-        }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              if (task.output?.pbr_model) {
+                setModelUrl(proxyUrl(task.output.pbr_model))
+              }
+            }}
+          >
             查看 3D 模型
           </Button>
         </div>

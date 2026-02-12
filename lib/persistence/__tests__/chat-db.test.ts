@@ -1,9 +1,9 @@
+import type { Session } from '../chat-db'
 // lib/persistence/__tests__/chat-db.test.ts
 import { describe, expect, it } from 'vitest'
-import type { Session } from '../chat-db'
 
 describe('chat-db types', () => {
-  it('Session shape is correct', () => {
+  it('session shape is correct', () => {
     const session: Session = {
       id: 'test-id',
       title: '新对话',

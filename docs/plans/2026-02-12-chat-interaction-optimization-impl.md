@@ -212,56 +212,56 @@ const presentOptions = tool({
 在 `POST` 函数体内（第 73 行之后），替换 `generateMascot` 定义并新增 `retextureMascot`：
 
 ```ts
-  const generateMascot = tool({
-    description: '根据描述生成 3D 吉祥物模型，返回 taskId 用于异步轮询',
-    inputSchema: z.object({
-      prompt: z.string().describe('详细的吉祥物描述，包含造型、颜色、姿态、配饰'),
-      style: z.string().optional().describe('风格偏好，如 cute、majestic、chibi'),
-    }),
-    execute: async ({ prompt, style }) => {
-      if (pendingTaskId) {
-        return { success: false, error: '已有模型在生成中，请等待完成' }
+const generateMascot = tool({
+  description: '根据描述生成 3D 吉祥物模型，返回 taskId 用于异步轮询',
+  inputSchema: z.object({
+    prompt: z.string().describe('详细的吉祥物描述，包含造型、颜色、姿态、配饰'),
+    style: z.string().optional().describe('风格偏好，如 cute、majestic、chibi'),
+  }),
+  execute: async ({ prompt, style }) => {
+    if (pendingTaskId) {
+      return { success: false, error: '已有模型在生成中，请等待完成' }
+    }
+    try {
+      const fullPrompt = style ? `${prompt}, ${style} style` : prompt
+      const taskId = await tripoClient.createTask(fullPrompt)
+      return { success: true, taskId, status: 'pending' }
+    }
+    catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '3D 模型生成失败',
       }
-      try {
-        const fullPrompt = style ? `${prompt}, ${style} style` : prompt
-        const taskId = await tripoClient.createTask(fullPrompt)
-        return { success: true, taskId, status: 'pending' }
-      }
-      catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : '3D 模型生成失败',
-        }
-      }
-    },
-  })
+    }
+  },
+})
 
-  const retextureMascot = tool({
-    description: '对已生成的 3D 模型重新生成纹理，保留造型不变，可指定新的材质/颜色/风格',
-    inputSchema: z.object({
-      taskId: z.string().describe('原始模型的 taskId'),
-      prompt: z.string().describe('期望的纹理效果描述，如"金属金色表面"'),
-      textureQuality: z.enum(['standard', 'detailed']).optional().describe('纹理质量，默认 standard'),
-    }),
-    execute: async ({ taskId, prompt, textureQuality }) => {
-      if (pendingTaskId) {
-        return { success: false, error: '已有模型在生成中，请等待完成' }
+const retextureMascot = tool({
+  description: '对已生成的 3D 模型重新生成纹理，保留造型不变，可指定新的材质/颜色/风格',
+  inputSchema: z.object({
+    taskId: z.string().describe('原始模型的 taskId'),
+    prompt: z.string().describe('期望的纹理效果描述，如"金属金色表面"'),
+    textureQuality: z.enum(['standard', 'detailed']).optional().describe('纹理质量，默认 standard'),
+  }),
+  execute: async ({ taskId, prompt, textureQuality }) => {
+    if (pendingTaskId) {
+      return { success: false, error: '已有模型在生成中，请等待完成' }
+    }
+    try {
+      const newTaskId = await tripoClient.retextureModel(taskId, {
+        prompt,
+        textureQuality: textureQuality ?? 'standard',
+      })
+      return { success: true, taskId: newTaskId, status: 'pending' }
+    }
+    catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '纹理重生成失败',
       }
-      try {
-        const newTaskId = await tripoClient.retextureModel(taskId, {
-          prompt,
-          textureQuality: textureQuality ?? 'standard',
-        })
-        return { success: true, taskId: newTaskId, status: 'pending' }
-      }
-      catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : '纹理重生成失败',
-        }
-      }
-    },
-  })
+    }
+  },
+})
 ```
 
 **Step 5: 更新 tools 注册（约第 105 行）**
@@ -397,24 +397,24 @@ export function ChatMessage({ message, isLast, isStreaming, onRegenerate, onSend
 在 `chat-message.tsx` 的 tool parts 区域（第 91-96 行 `generateMascot` 分支后），添加两个新分支：
 
 ```tsx
-            // OptionsButtons for presentOptions
-            if (toolName === 'presentOptions' && state === 'output-available' && output?.options) {
-              return (
-                <OptionsButtons
-                  key={`tool-${message.id}-${index}`}
-                  options={output.options as { label: string, description?: string }[]}
-                  onSelect={(label) => { onSendMessage?.(label) }}
-                  disabled={!isLast || isStreaming}
-                />
-              )
-            }
+// OptionsButtons for presentOptions
+if (toolName === 'presentOptions' && state === 'output-available' && output?.options) {
+  return (
+    <OptionsButtons
+      key={`tool-${message.id}-${index}`}
+      options={output.options as { label: string, description?: string }[]}
+      onSelect={(label) => { onSendMessage?.(label) }}
+      disabled={!isLast || isStreaming}
+    />
+  )
+}
 
-            // ModelPreview for retextureMascot (same rendering as generateMascot)
-            if (toolName === 'retextureMascot') {
-              if (state === 'output-available' && output?.taskId) {
-                return <ModelPreview key={`tool-${message.id}-${index}`} taskId={output.taskId as string} />
-              }
-            }
+// ModelPreview for retextureMascot (same rendering as generateMascot)
+if (toolName === 'retextureMascot') {
+  if (state === 'output-available' && output?.taskId) {
+    return <ModelPreview key={`tool-${message.id}-${index}`} taskId={output.taskId as string} />
+  }
+}
 ```
 
 **Step 4: 运行 lint 验证**
@@ -441,14 +441,14 @@ git commit -m "feat(chat): route presentOptions and retextureMascot tools to UI 
 在 `components/chat/index.tsx` 的 messages.map 中（约第 49-55 行），为 `ChatMessage` 添加 `onSendMessage` prop：
 
 ```tsx
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    isLast={index === messages.length - 1}
-                    isStreaming={isLoading}
-                    onRegenerate={message.role === 'assistant' ? regenerate : undefined}
-                    onSendMessage={text => sendMessage({ text })}
-                  />
+<ChatMessage
+  key={message.id}
+  message={message}
+  isLast={index === messages.length - 1}
+  isStreaming={isLoading}
+  onRegenerate={message.role === 'assistant' ? regenerate : undefined}
+  onSendMessage={text => sendMessage({ text })}
+/>
 ```
 
 **Step 2: 运行 lint 验证**

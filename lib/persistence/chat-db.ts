@@ -1,7 +1,7 @@
 // lib/persistence/chat-db.ts
 import type { UIMessage } from 'ai'
-import { openDB } from 'idb'
 import type { DBSchema, IDBPDatabase } from 'idb'
+import { openDB } from 'idb'
 
 export interface Session {
   id: string

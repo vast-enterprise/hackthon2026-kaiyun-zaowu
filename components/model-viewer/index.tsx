@@ -20,14 +20,15 @@ export function ModelViewer({ modelUrl }: ModelViewerProps) {
       <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
         <ambientLight intensity={0.5} />
         <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-        <Suspense fallback={
+        <Suspense fallback={(
           <Html center>
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Loader2 className="size-8 animate-spin" />
               <span className="text-sm">加载模型中...</span>
             </div>
           </Html>
-        }>
+        )}
+        >
           <Center>
             <Model url={modelUrl} />
           </Center>

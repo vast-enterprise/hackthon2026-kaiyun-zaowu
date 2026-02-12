@@ -175,7 +175,7 @@ Tailwind 的 `dark:` 前缀匹配 `.dark` class 的所有后代元素。
 
 ```tsx
 // 示例：button.tsx
-className="dark:bg-input/30 dark:hover:bg-input/50"
+className = 'dark:bg-input/30 dark:hover:bg-input/50'
 ```
 
 目前仅 `button.tsx`、`input.tsx`、`textarea.tsx`、`select.tsx` 使用了 `dark:` 前缀。
