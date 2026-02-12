@@ -12,7 +12,7 @@
 
 **Coding conventions:** 无分号、单引号、2 空格缩进（@antfu/eslint-config）、`'use client'` 标注客户端组件、`interface` 定义 props、`import type` 语法、函数声明 + 命名导出、`data-slot` 属性。
 
-**Important note:** Tripo `texture_model` API 不接受文本 prompt，仅支持 `original_model_task_id` + `texture_seed` 等参数。retexture 本质是用不同种子重新生成纹理变体，无法指定具体颜色/风格。系统提示词中需向 AI 说明这一限制。
+**Tripo texture_model API:** 支持 `texture_prompt.text` 文本描述 + `original_model_task_id` + `texture_seed` 等参数。可以用文本指定新纹理的颜色/风格/材质，保留原始造型不变。
 
 ---
 
@@ -29,24 +29,32 @@
   async retextureModel(
     originalTaskId: string,
     options?: {
+      prompt?: string
       textureSeed?: number
       textureQuality?: 'standard' | 'detailed'
     },
   ): Promise<string> {
+    const body: Record<string, unknown> = {
+      type: 'texture_model',
+      original_model_task_id: originalTaskId,
+      texture: true,
+      pbr: true,
+      texture_quality: options?.textureQuality ?? 'standard',
+    }
+    if (options?.prompt) {
+      body.texture_prompt = { text: options.prompt }
+    }
+    if (options?.textureSeed != null) {
+      body.texture_seed = options.textureSeed
+    }
+
     const res = await fetch(`${TRIPO_API_BASE}/task`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.TRIPO_API_KEY}`,
       },
-      body: JSON.stringify({
-        type: 'texture_model',
-        original_model_task_id: originalTaskId,
-        texture: true,
-        pbr: true,
-        texture_seed: options?.textureSeed ?? Math.floor(Math.random() * 100000),
-        texture_quality: options?.textureQuality ?? 'standard',
-      }),
+      body: JSON.stringify(body),
     })
 
     const data: TripoCreateTaskResponse = await res.json()
@@ -140,7 +148,7 @@ presentOptions — 每次回复末尾如果存在分支选择，就调用此工�
 
 generateMascot — 仅在用户明确确认吉祥物方案后调用。prompt 参数要包含详细的造型描述（形态、颜色、姿态、配饰、材质），用英文描述以获得最佳生成效果。
 
-retextureMascot — 用户想换一种纹理感觉时使用。注意：这个工具会生成随机纹理变体，不能指定具体颜色或风格。如果用户要求具体的颜色/造型变更，应该用 generateMascot 重新生成。调用后前端会自动轮询进度。完成后回到讨论环节，确认满意度。
+retextureMascot — 用户对已生成的模型想做小范围调整（换颜色、换材质、换纹理风格）时使用，不改变造型。prompt 参数用英文描述期望的纹理效果（如 "golden metallic surface" 或 "ice blue translucent jade"）。调用后前端会自动轮询进度。完成后回到讨论环节，确认满意度。
 
 调用 generateMascot 或 retextureMascot 后会返回 { taskId, status: 'pending' }，
 表示任务已提交异步生成，前端会自动轮询进度并展示结果。
@@ -229,17 +237,19 @@ const presentOptions = tool({
   })
 
   const retextureMascot = tool({
-    description: '对已生成的 3D 模型重新生成纹理变体，保留造型不变',
+    description: '对已生成的 3D 模型重新生成纹理，保留造型不变，可指定新的材质/颜色/风格',
     inputSchema: z.object({
       taskId: z.string().describe('原始模型的 taskId'),
+      prompt: z.string().describe('期望的纹理效果英文描述，如 "golden metallic surface"'),
       textureQuality: z.enum(['standard', 'detailed']).optional().describe('纹理质量，默认 standard'),
     }),
-    execute: async ({ taskId, textureQuality }) => {
+    execute: async ({ taskId, prompt, textureQuality }) => {
       if (pendingTaskId) {
         return { success: false, error: '已有模型在生成中，请等待完成' }
       }
       try {
         const newTaskId = await tripoClient.retextureModel(taskId, {
+          prompt,
           textureQuality: textureQuality ?? 'standard',
         })
         return { success: true, taskId: newTaskId, status: 'pending' }

@@ -108,7 +108,7 @@ presentOptions — 每次回复末尾如果存在分支选择，就调用此工�
 
 generateMascot — 仅在用户明确确认吉祥物方案后调用。prompt 参数要包含详细的造型描述（形态、颜色、姿态、配饰、材质），用英文描述以获得最佳生成效果。
 
-retextureMascot — 用户对已生成的模型想做小范围调整（换颜色、换材质、换纹理风格）时使用，不改变造型。prompt 参数描述新的材质风格，用英文。调整完成后回到讨论环节，确认满意度。
+retextureMascot — 用户对已生成的模型想做小范围调整（换颜色、换材质、换纹理风格）时使用，不改变造型。prompt 参数用英文描述期望的纹理效果（如 "golden metallic surface" 或 "ice blue translucent jade"）。调整完成后回到讨论环节，确认满意度。
 ```
 
 ## 前端变更
