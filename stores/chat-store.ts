@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { AnalysisNote } from '@/lib/bazi/types'
 
 export type Phase = 'chat' | 'split'
 
@@ -8,11 +9,13 @@ interface ChatState {
   currentSessionId: string | null
   sidebarOpen: boolean
   pendingTaskId: string | null
+  analysisNote: AnalysisNote | null
   setPhase: (phase: Phase) => void
   setModelUrl: (url: string) => void
   setCurrentSessionId: (id: string | null) => void
   setSidebarOpen: (open: boolean) => void
   setPendingTaskId: (id: string | null) => void
+  setAnalysisNote: (note: AnalysisNote | null) => void
   toggleSidebar: () => void
   reset: () => void
 }
@@ -23,6 +26,7 @@ export const useChatStore = create<ChatState>(set => ({
   currentSessionId: null,
   sidebarOpen: true,
   pendingTaskId: null,
+  analysisNote: null,
   setPhase: phase => set({ phase }),
   setModelUrl: (url) => {
     console.warn('[ChatStore] setModelUrl called:', url)
@@ -34,9 +38,10 @@ export const useChatStore = create<ChatState>(set => ({
     console.warn('[ChatStore] setPendingTaskId:', id)
     set({ pendingTaskId: id })
   },
+  setAnalysisNote: note => set({ analysisNote: note }),
   toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
   reset: () => {
     console.warn('[ChatStore] reset called')
-    set({ phase: 'chat', modelUrl: null, pendingTaskId: null, sidebarOpen: true })
+    set({ phase: 'chat', modelUrl: null, pendingTaskId: null, analysisNote: null, sidebarOpen: true })
   },
 }))

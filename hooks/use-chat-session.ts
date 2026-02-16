@@ -3,6 +3,7 @@
 
 import type { UIMessage } from 'ai'
 import type { Session } from '@/lib/persistence/chat-db'
+import type { AnalysisNote } from '@/lib/bazi/types'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -17,6 +18,7 @@ const transport = new DefaultChatTransport({
   api: '/api/chat',
   body: () => ({
     pendingTaskId: useChatStore.getState().pendingTaskId ?? undefined,
+    analysisNote: useChatStore.getState().analysisNote ?? undefined,
   }),
 })
 
@@ -53,16 +55,47 @@ export function useChatSession() {
     return () => clearTimeout(saveTimerRef.current)
   }, [chat.messages])
 
+  // Sync analysisNote from AI tool results
+  useEffect(() => {
+    async function syncAnalysisNote() {
+      const session = sessionRef.current
+      if (!session) return
+
+      const lastMsg = chat.messages[chat.messages.length - 1]
+      if (lastMsg?.role !== 'assistant') return
+
+      for (const part of lastMsg.parts) {
+        if (part.type.startsWith('tool-') && 'toolCallId' in part) {
+          const toolName = part.type.slice(5)
+          if ((toolName === 'analyzeBazi' || toolName === 'deepAnalysis')
+            && 'state' in part && part.state === 'output-available'
+            && 'output' in part && part.output) {
+            const output = part.output as Record<string, unknown>
+            if (output.analysisNote) {
+              const { saveAnalysisNote } = await import('@/lib/persistence/chat-db')
+              const note: AnalysisNote = { ...(output.analysisNote as AnalysisNote), sessionId: session.id }
+              await saveAnalysisNote(note)
+              useChatStore.getState().setAnalysisNote(note)
+            }
+          }
+        }
+      }
+    }
+    syncAnalysisNote()
+  }, [chat.messages])
+
   // Load latest session on mount
   useEffect(() => {
     async function init() {
-      const { getLatestSession, getSessionMessages } = await import('@/lib/persistence/chat-db')
+      const { getLatestSession, getSessionMessages, getAnalysisNote } = await import('@/lib/persistence/chat-db')
       const latest = await getLatestSession()
       if (latest) {
         const msgs = await getSessionMessages(latest.id)
         setInitialMessages(msgs)
         setCurrentSession(latest)
         setCurrentSessionId(latest.id)
+        const note = await getAnalysisNote(latest.id)
+        if (note) useChatStore.getState().setAnalysisNote(note)
       }
       else {
         const session = createSession()
@@ -78,7 +111,7 @@ export function useChatSession() {
   const loadSession = useCallback(async (sessionId: string) => {
     // Reset store first to clear modelUrl/phase before new messages render
     resetStore()
-    const { getSessionMessages, listSessions, saveSession } = await import('@/lib/persistence/chat-db')
+    const { getSessionMessages, listSessions, saveSession, getAnalysisNote } = await import('@/lib/persistence/chat-db')
     const sessions = await listSessions()
     const session = sessions.find(s => s.id === sessionId)
     if (!session)
@@ -89,6 +122,8 @@ export function useChatSession() {
     setCurrentSessionId(updated.id)
     setCurrentSession(updated)
     setInitialMessages(msgs)
+    const note = await getAnalysisNote(sessionId)
+    useChatStore.getState().setAnalysisNote(note ?? null)
   }, [setCurrentSessionId, resetStore])
 
   const newSession = useCallback(async () => {
@@ -99,6 +134,7 @@ export function useChatSession() {
     setInitialMessages([])
     const { saveSession } = await import('@/lib/persistence/chat-db')
     await saveSession(session, [])
+    useChatStore.getState().setAnalysisNote(null)
   }, [setCurrentSessionId, resetStore])
 
   return {
