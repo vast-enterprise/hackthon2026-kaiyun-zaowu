@@ -1,7 +1,9 @@
 // scripts/build-embeddings.ts
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { embedBatch } from '../lib/bazi/embedding'
+import { embedBatch, embedText } from '../lib/bazi/embedding'
+
+process.loadEnvFile()
 
 interface SourceEntry {
   id: string
@@ -15,7 +17,7 @@ interface ChunkWithEmbedding extends SourceEntry {
   embedding: number[]
 }
 
-const BATCH_SIZE = 10
+const BATCH_SIZE = 32
 const BATCH_DELAY_MS = 1000
 
 async function main() {
@@ -37,13 +39,25 @@ async function main() {
 
   for (let i = 0; i < allEntries.length; i += BATCH_SIZE) {
     const batch = allEntries.slice(i, i + BATCH_SIZE)
-    const texts = batch.map(e => e.content)
-    console.log(`Embedding batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allEntries.length / BATCH_SIZE)}...`)
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1
+    const totalBatches = Math.ceil(allEntries.length / BATCH_SIZE)
+    console.log(`Embedding batch ${batchNum}/${totalBatches}...`)
 
-    const embeddings = await embedBatch(texts)
-
-    for (let j = 0; j < batch.length; j++) {
-      chunks.push({ ...batch[j], embedding: embeddings[j] })
+    try {
+      const texts = batch.map(e => e.content)
+      const embeddings = await embedBatch(texts)
+      for (let j = 0; j < batch.length; j++) {
+        chunks.push({ ...batch[j], embedding: embeddings[j] })
+      }
+    }
+    catch {
+      // 批量失败时逐条重试
+      console.log(`  Batch failed, retrying one by one...`)
+      for (const entry of batch) {
+        const embedding = await embedText(entry.content)
+        chunks.push({ ...entry, embedding })
+        await new Promise(r => setTimeout(r, 500))
+      }
     }
 
     // Rate limit: wait between batches

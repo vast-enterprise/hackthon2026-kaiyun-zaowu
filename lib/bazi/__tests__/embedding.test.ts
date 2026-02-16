@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { embedBatch, embedText } from '../embedding'
 
 // Mock global fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+beforeAll(() => {
+  process.env.ZHIPU_API_KEY = 'test-id.test-secret'
+})
 
 afterEach(() => {
   mockFetch.mockReset()
@@ -23,8 +27,10 @@ describe('embedText', () => {
     const [url, options] = mockFetch.mock.calls[0]
     expect(url).toBe('https://open.bigmodel.cn/api/paas/v4/embeddings')
     expect(options.method).toBe('POST')
+    expect(options.headers.Authorization).toMatch(/^Bearer .+\..+\..+$/)
     const body = JSON.parse(options.body)
     expect(body.model).toBe('embedding-3')
+    expect(body.dimensions).toBe(1024)
     expect(body.input).toBe('甲木寅月调候')
     expect(result).toEqual(fakeEmbedding)
   })
