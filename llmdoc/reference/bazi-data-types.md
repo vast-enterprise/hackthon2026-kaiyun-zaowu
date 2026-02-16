@@ -2,17 +2,19 @@
 
 ## 1. 核心概要
 
-八字类型系统定义于 `lib/bazi/types.ts`，以 `BaziInput` 为输入、`BaziResult` 为输出，中间通过 `Pillar`、`TianGan`、`DiZhi`、`CangGan`、`FiveElements`、`DecadeFortune` 等接口描述命盘的各层数据结构。
+八字类型系统定义于 `lib/bazi/types.ts`，以 `BaziInput` 为输入、`BaziResult` 为输出，中间通过 `Pillar`、`TianGan`、`DiZhi` 等接口描述命盘数据。阶段 1 新增 `AnalysisEntry` 和 `AnalysisNote` 类型，构成双 Agent 架构的共享记忆层。
 
 ## 2. 真相来源
 
-- **类型定义：** `lib/bazi/types.ts` - 所有接口的完整定义（BaziInput, BaziResult, Pillar, FourPillars, TianGan, DiZhi, CangGan, FiveElements, DecadeFortune）。
-- **核心计算：** `lib/bazi/index.ts` (`calculateBazi`) - 类型的实际生产者，展示各字段的赋值逻辑。
+- **类型定义：** `lib/bazi/types.ts` - 所有接口的完整定义（BaziInput, BaziResult, Pillar, FourPillars, TianGan, DiZhi, CangGan, FiveElements, DecadeFortune, AnalysisEntry, AnalysisNote）。
+- **核心计算：** `lib/bazi/index.ts` (`calculateBazi`) - BaziResult 的实际生产者。
+- **分析 Agent：** `lib/bazi/analysis-agent.ts` (`runAnalysis`) - AnalysisEntry 的实际生产者。
 - **五行统计：** `lib/bazi/five-elements.ts` (`countFiveElements`) - FiveElements 的计算实现。
 - **颜色映射：** `lib/bazi/colors.ts` (`WU_XING_COLORS`, `getWuXingColor`) - 五行到 OKLCH 颜色的映射表。
-- **工具 Schema：** `app/api/chat/route.ts:14-19` - analyzeBazi 工具的 Zod 输入校验 schema，定义了 AI 调用时的参数约束。
+- **工具 Schema：** `app/api/chat/route.ts:109-176` - analyzeBazi 和 deepAnalysis 工具定义。
+- **持久化：** `lib/persistence/chat-db.ts` (`saveAnalysisNote`, `getAnalysisNote`) - AnalysisNote 的 IndexedDB 读写。
 - **UI 消费者：** `components/chat/bagua-card.tsx` (`BaguaCard`) - BaziResult 的主要渲染组件。
-- **架构文档：** `/architecture/bazi-system.md` - 八字系统的完整架构和执行流程。
+- **架构文档：** `/llmdoc/architecture/bazi-system.md` - 八字系统的完整架构和执行流程。
 
 ## 3. 类型层级关系
 
@@ -31,6 +33,16 @@ BaziInput (输入)
          |- decadeFortunes: DecadeFortune[] (ganZhi, startYear, endYear, startAge, endAge)
          |- relations: Record<string, unknown> (刑冲合害, 来自 cantian-tymext)
          |- solar/lunar/bazi/zodiac/dayMaster: string (基础信息)
+
+AnalysisNote (共享记忆层)
+  |- sessionId: string (关联会话)
+  |- rawData: BaziResult (排盘原始数据)
+  |- analyses: AnalysisEntry[] (增量分析条目)
+  |    |- question: string | null (null = 首次综合分析)
+  |    |- content: string (Markdown 分析结论)
+  |    |- references: string[] (引用经典, 如《子平真诠》)
+  |    |- createdAt: number
+  |- updatedAt: number
 ```
 
 ## 4. 关键约束
@@ -39,3 +51,5 @@ BaziInput (输入)
 - `BaziInput.minute`: 可选，默认 0，`tyme4ts` 需要但八字计算主要取决于时辰。
 - `TianGan.shiShen`: 日柱天干（日主）无十神，该字段为 `undefined`。
 - `gods` 和 `relations`: 来自闭源库 `cantian-tymext`，计算失败时分别为空数组和空对象。
+- `AnalysisEntry.question`: `null` 表示首次综合分析，非 null 表示针对特定问题的补充分析。
+- `AnalysisNote.analyses`: 追加式数组，每次分析追加新条目，分析 Agent 可看到所有历史条目。
