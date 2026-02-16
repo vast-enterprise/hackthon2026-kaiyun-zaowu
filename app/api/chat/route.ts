@@ -1,8 +1,10 @@
 // app/api/chat/route.ts
+import type { AnalysisNote } from '@/lib/bazi/types'
 import { createDeepSeek } from '@ai-sdk/deepseek'
 import { convertToModelMessages, hasToolCall, stepCountIs, streamText, tool } from 'ai'
 import { z } from 'zod'
 import { calculateBazi } from '@/lib/bazi'
+import { runAnalysis } from '@/lib/bazi/analysis-agent'
 import { tripoClient } from '@/lib/tripo'
 
 const deepseek = createDeepSeek({
@@ -18,26 +20,6 @@ const presentOptions = tool({
     })).describe('选项列表'),
   }),
   execute: async ({ options }) => ({ options }),
-})
-
-const analyzeBazi = tool({
-  description: '根据出生日期时间分析八字命盘,返回完整的四柱数据',
-  inputSchema: z.object({
-    year: z.number().describe('出生年份,如 1990'),
-    month: z.number().min(1).max(12).describe('出生月份'),
-    day: z.number().min(1).max(31).describe('出生日'),
-    hour: z.number().min(0).max(23).describe('出生时辰(24 小时制)'),
-    gender: z.number().min(0).max(1).optional().describe('性别:0 女 1 男,默认 1'),
-  }),
-  execute: async ({ year, month, day, hour, gender }) => {
-    try {
-      const result = calculateBazi({ year, month, day, hour, gender: (gender ?? 1) as 0 | 1 })
-      return { success: true, data: result }
-    }
-    catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : '八字计算失败' }
-    }
-  },
 })
 
 const systemPrompt = `## 你是谁
@@ -57,54 +39,141 @@ const systemPrompt = `## 你是谁
 - 给选择不给指令。需要用户做决定时,调用 presentOptions 提供选项,让用户主导节奏。
 - 改完不急着收工。每次生成或修改完成后,先问满不满意。不满意就接着聊怎么改,聊完确认了再动手。
 - 用户说了生辰信息,你必须先复述确认(年月日时、性别),然后停下来等用户回复"对的"或纠正。在用户明确确认之前,绝对不要调用 analyzeBazi。这是硬性规则,没有例外。
-- 拿到命盘后,先给一个简洁有力的总体判断(两三句话,铁口直断),然后引导用户选择感兴趣的方向或直接看吉祥物。
-- 解读具体方向时,结合命盘数据说人话,让没有命理基础的人也能听懂。解读完一个方向后,继续提供选择。
-- 吉祥物方案在生成前必须和用户充分讨论——你先推荐,用户可以提自己的想法,最终方案双方都满意了才生成。
 
 ## 八字解读
 
-拿到 analyzeBazi 返回的命盘数据后,你的解读方式:
+你的上下文中包含分析 Agent 产出的专业分析结论。
+你的职责是把这些结论翻译成用户听得懂的话。
 
-总论先行:观察日主强弱、格局高低,用一两句直白的话概括此人命盘的核心特征。
-比如"你这盘日主偏弱但有根,属于看着温和、骨子里倔的人",而不是"日主甲木生于申月处死地"。
-
-分方向解读时,围绕以下维度展开:
-- 事业:看官杀、印星与日主的关系,结合大运走势
-- 财运:看财星旺衰、是否有食伤生财的通路
-- 婚恋:看配偶宫(日支)、配偶星(男看财女看官)的状态
-- 健康:看五行偏枯,哪个五行过旺或过弱对应的身体部位
-
-解读时直接给结论,再简单解释依据。不要先铺垫半天再说结论。
+规则:
+- 先给一个简洁有力的总体判断,铁口直断
+- 用大白话解释,不堆砌术语
+- 该提醒的地方不含糊,该夸的一笔带过
+- 分析结论中标注了不确定的判断,不要把这些当作确定结论呈现给用户
+- 用户追问时,优先从已有分析结论中提取相关内容
+- 如果已有分析不足以回答用户的问题,调用 deepAnalysis 让分析 Agent 补充
 
 ## 吉祥物设计
 
-根据命盘喜用神对应的五行,推荐吉祥物方向:
-- 喜水:玄武、龟、鱼 — 黑色/深蓝色调
-- 喜木:青龙、麒麟 — 绿色/青色调
-- 喜火:朱雀、凤凰 — 红色/橙色调
-- 喜金:白虎、貔貅 — 白色/金色调
-- 喜土:黄龙、瑞兽 — 黄色/棕色调
-
+根据分析结论中的喜用神方向,推荐吉祥物方案。不要局限于固定的五行-瑞兽对应,发挥创意。
 描述吉祥物时要具体:造型、姿态、配饰、颜色、材质质感都要说清楚。
 风格适合做桌面摆件,精致小巧。
 先推荐你认为最合适的方案,再问用户的偏好和想法。
+吉祥物方案在生成前必须和用户充分讨论——你先推荐,用户可以提自己的想法,最终方案双方都满意了才生成。
+
+调用 generateMascot 时,prompt 遵循以下结构(英文):
+"A [style] figurine of [creature], [key pose/action],
+[1-2 material descriptors], [1-2 color descriptors],
+desktop collectible, smooth LOD transitions"
 
 ## 工具使用
 
-analyzeBazi — 必须在用户确认生辰信息后才能调用。收到生辰信息后先复述、等确认、收到确认后才排盘。用户还没说"对""好""确认"之类的话之前,不许调用此工具。
+analyzeBazi — 必须在用户确认生辰信息后才能调用。收到生辰信息后先复述、等确认、收到确认后才排盘。
+
+deepAnalysis — 当已有分析结论不足以回答用户问题时调用,传入具体问题,分析 Agent 会做补充分析。
 
 presentOptions — 每次回复末尾如果存在分支选择,就调用此工具提供选项按钮。不要用纯文字罗列选项来替代它。
 
 generateMascot — 仅在用户明确确认吉祥物方案后调用。prompt 参数要包含详细的造型描述(形态、颜色、姿态、配饰、材质)。
 
-retextureMascot — 用户对已生成的模型想做小范围调整(换颜色、换材质、换纹理风格)时使用,不改变造型。prompt 参数描述期望的纹理效果(如"金属金色表面"或"冰蓝色通透玉质感")。调用后前端会自动轮询进度。完成后回到讨论环节,确认满意度。
+retextureMascot — 用户对已生成的模型想做小范围调整(换颜色、换材质、换纹理风格)时使用,不改变造型。
 
 调用 generateMascot 或 retextureMascot 后会返回 { taskId, status: 'pending' },
 表示任务已提交异步生成,前端会自动轮询进度并展示结果。
 在模型生成期间不要再次调用这两个工具,告诉用户等待当前任务完成。`
 
+function buildAnalysisContext(note: AnalysisNote | null): string {
+  if (!note || note.analyses.length === 0)
+    return ''
+
+  const parts = ['\n\n## 命盘分析结论（由分析 Agent 产出，供你参考和引用）\n']
+  for (const entry of note.analyses) {
+    if (entry.question) {
+      parts.push(`### 关于「${entry.question}」\n`)
+    }
+    else {
+      parts.push('### 综合分析\n')
+    }
+    parts.push(entry.content)
+    if (entry.references.length > 0) {
+      parts.push(`\n引用经典：${entry.references.join('、')}`)
+    }
+    parts.push('')
+  }
+  return parts.join('\n')
+}
+
 export async function POST(req: Request) {
-  const { messages, pendingTaskId } = await req.json()
+  const { messages, pendingTaskId, analysisNote: existingNote } = await req.json()
+
+  const analyzeBazi = tool({
+    description: '根据出生日期时间分析八字命盘,返回完整的四柱数据和专业分析',
+    inputSchema: z.object({
+      year: z.number().describe('出生年份,如 1990'),
+      month: z.number().min(1).max(12).describe('出生月份'),
+      day: z.number().min(1).max(31).describe('出生日'),
+      hour: z.number().min(0).max(23).describe('出生时辰(24 小时制)'),
+      gender: z.number().min(0).max(1).optional().describe('性别:0 女 1 男,默认 1'),
+    }),
+    execute: async ({ year, month, day, hour, gender }) => {
+      try {
+        const result = calculateBazi({ year, month, day, hour, gender: (gender ?? 1) as 0 | 1 })
+
+        const { fiveElements, ...dataForAnalysis } = result
+
+        const entry = await runAnalysis({
+          rawData: dataForAnalysis,
+          previousNote: existingNote ?? null,
+          question: null,
+        })
+
+        const updatedNote: AnalysisNote = {
+          sessionId: '',
+          rawData: result,
+          analyses: [...(existingNote?.analyses ?? []), entry],
+          updatedAt: Date.now(),
+        }
+
+        return { success: true, data: result, analysisNote: updatedNote }
+      }
+      catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : '八字计算失败' }
+      }
+    },
+  })
+
+  const deepAnalysis = tool({
+    description: '对已有命盘做补充深入分析,当 analysisNote 中的现有分析不足以回答用户问题时调用',
+    inputSchema: z.object({
+      question: z.string().describe('需要深入分析的具体问题'),
+    }),
+    execute: async ({ question }) => {
+      if (!existingNote?.rawData) {
+        return { success: false, error: '尚未排盘，请先调用 analyzeBazi' }
+      }
+
+      try {
+        const { fiveElements, ...dataForAnalysis } = existingNote.rawData
+
+        const entry = await runAnalysis({
+          rawData: dataForAnalysis,
+          previousNote: existingNote,
+          question,
+        })
+
+        const updatedNote: AnalysisNote = {
+          ...existingNote,
+          analyses: [...existingNote.analyses, entry],
+          updatedAt: Date.now(),
+        }
+
+        return { success: true, analysisNote: updatedNote }
+      }
+      catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : '补充分析失败' }
+      }
+    },
+  })
 
   const generateMascot = tool({
     description: '根据描述生成 3D 吉祥物模型,返回 taskId 用于异步轮询',
@@ -151,11 +220,13 @@ export async function POST(req: Request) {
     },
   })
 
+  const analysisContext = buildAnalysisContext(existingNote ?? null)
+
   const result = streamText({
     model: deepseek('deepseek-chat'),
-    system: systemPrompt,
+    system: systemPrompt + analysisContext,
     messages: await convertToModelMessages(messages),
-    tools: { analyzeBazi, generateMascot, retextureMascot, presentOptions },
+    tools: { analyzeBazi, generateMascot, retextureMascot, presentOptions, deepAnalysis },
     stopWhen: [stepCountIs(10), hasToolCall('presentOptions')],
   })
 
