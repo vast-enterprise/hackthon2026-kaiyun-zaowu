@@ -180,14 +180,15 @@ export async function POST(req: Request) {
     inputSchema: z.object({
       prompt: z.string().describe('详细的吉祥物描述,包含造型、颜色、姿态、配饰'),
       style: z.string().optional().describe('风格偏好,如 cute、majestic、chibi'),
+      negativePrompt: z.string().optional().describe('不希望出现的特征,英文'),
     }),
-    execute: async ({ prompt, style }) => {
+    execute: async ({ prompt, style, negativePrompt }) => {
       if (pendingTaskId) {
         return { success: false, error: '已有模型在生成中,请等待完成' }
       }
       try {
         const fullPrompt = style ? `${prompt}, ${style} style` : prompt
-        const taskId = await tripoClient.createTask(fullPrompt)
+        const taskId = await tripoClient.createTask(fullPrompt, { negativePrompt })
         return { success: true, taskId, status: 'pending' }
       }
       catch (error) {

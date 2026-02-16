@@ -26,7 +26,10 @@ export interface TripoGetTaskResponse {
 }
 
 export const tripoClient = {
-  async createTask(prompt: string): Promise<string> {
+  async createTask(
+    prompt: string,
+    options?: { negativePrompt?: string },
+  ): Promise<string> {
     const res = await fetch(`${TRIPO_API_BASE}/task`, {
       method: 'POST',
       headers: {
@@ -36,7 +39,9 @@ export const tripoClient = {
       body: JSON.stringify({
         type: 'text_to_model',
         prompt,
+        negative_prompt: options?.negativePrompt ?? 'blurry, low quality, multiple heads, floating parts, disconnected geometry, extra limbs, deformed',
         model_version: 'v2.5-20250123',
+        texture_quality: 'high',
       }),
     })
 
