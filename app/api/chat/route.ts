@@ -216,7 +216,7 @@ export async function POST(req: Request) {
       try {
         const fullPrompt = style ? `${prompt}, ${style} style` : prompt
         const taskId = await tripoClient.createTask(fullPrompt, { negativePrompt })
-        return { success: true, taskId, status: 'pending' }
+        return { success: true, taskId, status: 'pending', prompt: fullPrompt, negativePrompt: negativePrompt ?? null }
       }
       catch (error) {
         return { success: false, error: error instanceof Error ? error.message : '3D 模型生成失败' }
@@ -240,7 +240,7 @@ export async function POST(req: Request) {
           prompt,
           textureQuality: textureQuality ?? 'standard',
         })
-        return { success: true, taskId: newTaskId, status: 'pending' }
+        return { success: true, taskId: newTaskId, status: 'pending', prompt }
       }
       catch (error) {
         return { success: false, error: error instanceof Error ? error.message : '纹理重生成失败' }
