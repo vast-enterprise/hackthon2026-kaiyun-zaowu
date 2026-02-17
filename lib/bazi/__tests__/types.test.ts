@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
 import type { AnalysisEntry, AnalysisNote, BaziResult } from '../types'
+import { describe, expect, it } from 'vitest'
 
-describe('AnalysisNote types', () => {
+describe('analysisNote types', () => {
   it('should allow creating a valid AnalysisEntry', () => {
     const entry: AnalysisEntry = {
       question: null,
@@ -21,5 +21,49 @@ describe('AnalysisNote types', () => {
       updatedAt: Date.now(),
     }
     expect(note.analyses).toHaveLength(0)
+  })
+})
+
+import type { AnalysisProgress, AnalysisEvent, ClassicQueryResult } from '../types'
+
+describe('analysis streaming types', () => {
+  it('should allow creating a valid ClassicQueryResult', () => {
+    const result: ClassicQueryResult = {
+      query: '甲木寅月',
+      source: '穷通宝鉴',
+      chapter: '甲木寅月',
+      content: '甲木寅月，初春尚有余寒...',
+      score: 0.85,
+    }
+    expect(result.score).toBeGreaterThan(0)
+  })
+
+  it('should allow creating AnalysisProgress in each phase', () => {
+    const started: AnalysisProgress = { phase: 'started' }
+    expect(started.phase).toBe('started')
+
+    const analyzing: AnalysisProgress = {
+      phase: 'analyzing',
+      partialText: '日主甲木...',
+      classicQueries: [],
+    }
+    expect(analyzing.partialText).toBeDefined()
+
+    const querying: AnalysisProgress = {
+      phase: 'querying',
+      query: '甲木寅月',
+      source: '穷通宝鉴',
+      partialText: '日主甲木...',
+      classicQueries: [],
+    }
+    expect(querying.query).toBe('甲木寅月')
+  })
+
+  it('should allow creating AnalysisEvent variants', () => {
+    const textDelta: AnalysisEvent = { type: 'text-delta', textDelta: '日主' }
+    expect(textDelta.type).toBe('text-delta')
+
+    const toolCall: AnalysisEvent = { type: 'tool-call', query: '甲木寅月', source: '穷通宝鉴' }
+    expect(toolCall.type).toBe('tool-call')
   })
 })

@@ -95,3 +95,34 @@ export interface AnalysisNote {
   analyses: AnalysisEntry[]
   updatedAt: number
 }
+
+// --- Analysis streaming types ---
+
+export interface ClassicQueryResult {
+  query: string
+  source: string
+  chapter: string
+  content: string
+  score: number
+}
+
+export type AnalysisEvent =
+  | { type: 'text-delta'; textDelta: string }
+  | { type: 'tool-call'; query: string; source: string }
+  | { type: 'tool-result'; results: ClassicQueryResult[] }
+  | { type: 'finish'; entry: AnalysisEntry }
+
+export interface AnalysisProgress {
+  phase: 'started' | 'analyzing' | 'querying' | 'queried' | 'complete'
+  partialText?: string
+  query?: string
+  source?: string
+  classicResults?: ClassicQueryResult[]
+  analysisNote?: AnalysisNote
+  classicQueries?: Array<{
+    query: string
+    source: string
+    results: ClassicQueryResult[]
+  }>
+  error?: string
+}
