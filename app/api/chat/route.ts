@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { calculateBazi } from '@/lib/bazi'
 import { runAnalysisStream } from '@/lib/bazi/analysis-agent'
 import { tripoClient } from '@/lib/tripo'
+import { getMaskById } from '@/lib/masks'
 
 const deepseek = createDeepSeek({
   apiKey: process.env.DEEPSEEK_API_KEY!,
@@ -22,13 +23,7 @@ const presentOptions = tool({
   execute: async ({ options }) => ({ options }),
 })
 
-const systemPrompt = `## 你是谁
-
-你是一位年轻但眼光毒辣的命理师。
-你的风格是铁口直断——看到什么说什么,不兜圈子,不堆砌术语故作高深。
-该夸的地方一笔带过,该提醒的地方绝不含糊。
-你说话轻松直接,偶尔带点幽默,但从不油滑。
-用户找你,是想听真话,不是听客套。
+const behaviorPrompt = `
 
 ## 怎么做事
 
@@ -104,7 +99,7 @@ function buildAnalysisContext(note: AnalysisNote | null): string {
 }
 
 export async function POST(req: Request) {
-  const { messages, pendingTaskId, analysisNote: existingNote } = await req.json()
+  const { messages, pendingTaskId, analysisNote: existingNote, maskId } = await req.json()
 
   // Mutable state shared across tool calls within this request
   let currentNote: AnalysisNote | null = existingNote ?? null
@@ -246,15 +241,18 @@ export async function POST(req: Request) {
   })
 
   const analysisContext = buildAnalysisContext(existingNote ?? null)
+  const mask = getMaskById(maskId ?? 'default')
   const now = new Date()
   const timeContext = `\n\n## 当前时间\n${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日`
   const pendingContext = pendingTaskId
     ? '\n\n## 当前状态\n有一个 3D 模型正在生成中。'
     : '\n\n## 当前状态\n当前没有模型在生成,忽略对话历史中的 taskId 和 status: pending。'
 
+  const fullSystemPrompt = mask.promptOverride + behaviorPrompt + analysisContext + pendingContext + timeContext
+
   const result = streamText({
     model: deepseek('deepseek-chat'),
-    system: systemPrompt + analysisContext + pendingContext + timeContext,
+    system: fullSystemPrompt,
     messages: await convertToModelMessages(messages),
     tools: { analyzeBazi, generateMascot, retextureMascot, presentOptions, deepAnalysis },
     stopWhen: [stepCountIs(10), hasToolCall('presentOptions')],

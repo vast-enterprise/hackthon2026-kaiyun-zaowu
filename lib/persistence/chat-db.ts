@@ -9,6 +9,7 @@ export interface Session {
   title: string
   createdAt: number
   updatedAt: number
+  maskId?: string
 }
 
 interface SessionMessages {

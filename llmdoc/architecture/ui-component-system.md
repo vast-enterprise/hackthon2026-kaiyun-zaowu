@@ -14,7 +14,7 @@
 - `hooks/use-mobile.ts` (`useMobile`): 移动端检测 Hook，基于 `matchMedia` 监听 `< 768px` 断点，返回 `isMobile` 布尔值。
 - `components/sidebar/index.tsx` (`Sidebar`): 双模式侧边栏。手机端（`isMobile`）为 fixed 抽屉覆盖层（z-50 + backdrop），选中会话或点击关闭按钮自动收回；平板/桌面端为内联折叠侧边栏（`hidden md:flex`，折叠 48px / 展开 240px）。
 - `components/ai-elements/*.tsx` (7 个组件): AI 聊天专用组件层，包含 Conversation、Message、PromptInput、Reasoning、Tool、CodeBlock、Shimmer。`MessageContent` 包含 `group-[.is-assistant]:w-full` 确保 assistant 消息中的工具卡片（如 AnalysisCard）宽度 100%。
-- `components/chat/index.tsx` (`Chat`): 页面级聊天组合组件，整合 AI Elements 和 useChatSession hook。
+- `components/chat/index.tsx` (`Chat`, `MaskGuide`): 页面级聊天组合组件，整合 AI Elements 和 useChatSession hook。新会话（`messages.length === 0`）时渲染 `MaskGuide` 面具选择引导界面；有消息后渲染消息列表。`MaskGuide` 从 `lib/masks.ts` 的 `MASKS` 数组渲染 2x3（手机 2 列/桌面 3 列）卡片网格，每张卡片显示面具的 icon/name/description，点击调用 `setMaskId` 更新 Zustand 选中面具，选中卡片高亮 `border-primary bg-primary/5`。
 - `components/chat/analysis-card.tsx` (`AnalysisCard`, `ClassicSubCard`, `SOURCE_LABELS`): 分析过程流式渲染卡片。`AnalysisCard` 接收 `progress`（AnalysisProgress）、`state`（tool part state）、`preliminary`（boolean，中间 yield 为 true）和 `question`（可选，追问问题）四个 prop，通过 `isComplete = state === 'output-available' && !preliminary` 判断完成状态。未完成时：无 question 显示「正在分析命盘，请稍候...」，有 question 显示「正在分析「xxx」，请稍候...」；完成时：无 question 显示「分析完成 · 引用 N 部典籍」，有 question 显示「「xxx」分析完成 · 引用 N 部典籍」。`SOURCE_LABELS` 为典籍 ID 到中文书名的映射（ziping→子平真诠, ditian→滴天髓, qiongtong→穷通宝鉴, yuanhai→渊海子平, sanming→三命通会, all→全部经典），`ClassicSubCard` 使用此映射在 header 中显示中文书名。基于 Collapsible、Badge 等基础 UI 组件构建。
 - `components/order-modal/index.tsx` (`OrderModal`): 业务弹窗，基于 Dialog 封装的下单打印界面（待实现）。
 - `components/ui/resizable.tsx` (`ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`): 可调整大小面板，用于主页分栏布局。

@@ -11,7 +11,7 @@ import { useChatStore } from '@/stores/chat-store'
 
 function createSession(title = '新对话'): Session {
   const now = Date.now()
-  return { id: crypto.randomUUID(), title, createdAt: now, updatedAt: now }
+  return { id: crypto.randomUUID(), title, createdAt: now, updatedAt: now, maskId: useChatStore.getState().maskId }
 }
 
 const transport = new DefaultChatTransport({
@@ -19,6 +19,7 @@ const transport = new DefaultChatTransport({
   body: () => ({
     pendingTaskId: useChatStore.getState().pendingTaskId ?? undefined,
     analysisNote: useChatStore.getState().analysisNote ?? undefined,
+    maskId: useChatStore.getState().maskId,
   }),
 })
 
@@ -70,7 +71,7 @@ export function useChatSession() {
       const firstUserMsg = chat.messages.find(m => m.role === 'user')
       const textPart = firstUserMsg?.parts.find(p => p.type === 'text')
       const title = (textPart && 'text' in textPart ? textPart.text : '').slice(0, 20) || '新对话'
-      const updated = { ...session, title, updatedAt: Date.now() }
+      const updated = { ...session, title, updatedAt: Date.now(), maskId: useChatStore.getState().maskId }
       await saveSession(updated, chat.messages)
       setCurrentSession(updated)
     }, 300)
@@ -120,6 +121,8 @@ export function useChatSession() {
         setInitialMessages(msgs)
         setCurrentSession(latest)
         setCurrentSessionId(latest.id)
+        if (latest.maskId)
+          useChatStore.getState().setMaskId(latest.maskId)
         const note = await getAnalysisNote(latest.id)
         if (note)
           useChatStore.getState().setAnalysisNote(note)
@@ -151,6 +154,8 @@ export function useChatSession() {
     setCurrentSessionId(updated.id)
     setCurrentSession(updated)
     setInitialMessages(msgs)
+    if (session.maskId)
+      useChatStore.getState().setMaskId(session.maskId)
     const note = await getAnalysisNote(sessionId)
     useChatStore.getState().setAnalysisNote(note ?? null)
   }, [setCurrentSessionId, resetStore])

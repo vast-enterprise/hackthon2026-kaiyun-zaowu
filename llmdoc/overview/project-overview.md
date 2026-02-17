@@ -41,7 +41,7 @@ app/
   layout.tsx, page.tsx          # 根布局与主页面 (Client Component)
   globals.css                   # OKLCH 主题变量 + Tailwind v4
   api/
-    chat/route.ts               # AI 聊天流式端点 (streamText + 5 tools + 双 Agent)
+    chat/route.ts               # AI 聊天流式端点 (streamText + 5 tools + 双 Agent + 面具系统)
     order/route.ts              # 订单创建 [未实现]
     tripo/
       generate/route.ts         # Tripo 任务提交 [未实现]
@@ -49,15 +49,15 @@ app/
       task/[id]/route.ts        # 任务状态查询代理
 components/
   ai-elements/                  # Vercel AI Elements 组件
-  chat/                         # 聊天业务组件 (Chat/ChatMessage/BaguaCard/AnalysisCard/ModelPreview/PromptCard/OptionsButtons)
+  chat/                         # 聊天业务组件 (Chat/MaskGuide/ChatMessage/BaguaCard/AnalysisCard/ModelPreview/PromptCard/OptionsButtons)
   model-viewer/                 # React Three Fiber 3D 查看器
   order-modal/                  # 订单弹窗 [表单未实现]
   sidebar/                      # 会话列表侧边栏 + 主题切换
   ui/                           # shadcn/ui 基础组件 (18 个)
 hooks/
-  use-chat-session.ts           # 聊天会话 Hook (useChat 封装 + IndexedDB + analysisNote 同步)
+  use-chat-session.ts           # 聊天会话 Hook (useChat 封装 + IndexedDB + analysisNote 同步 + maskId 同步)
 stores/
-  chat-store.ts                 # Zustand 全局状态 (phase/modelUrl/pendingTaskId/analysisNote)
+  chat-store.ts                 # Zustand 全局状态 (phase/modelUrl/pendingTaskId/analysisNote/maskId)
 lib/
   bazi/                         # 八字计算 + 分析 Agent
     index.ts                    # 排盘计算 (calculateBazi)
@@ -66,6 +66,7 @@ lib/
     five-elements.ts            # 五行统计
     colors.ts                   # 五行颜色映射
     __tests__/                  # 分析 Agent 单元测试
+  masks.ts                      # 面具定义 (Mask 接口/5 个预设面具/getMaskById)
   persistence/chat-db.ts        # IndexedDB 数据库操作 (sessions/messages/analysisNotes)
   tripo.ts                      # Tripo API 客户端 (createTask/getTask/waitForCompletion/retextureModel)
   deepseek.ts                   # DeepSeek 客户端骨架 [未实现]
@@ -79,6 +80,7 @@ vitest.config.ts                # Vitest 测试配置 (globals + @ 别名)
 **已完成:**
 - AI 聊天流式对话 (DeepSeek + Vercel AI SDK)
 - 双 Agent 八字命理架构（分析 Agent + 对话 Agent + analysisNote 共享记忆）
+- 面具系统（5 个预设对话角色，新会话时选择，影响对话 Agent system prompt 的「你是谁」段落）
 - 八字排盘计算与 BaguaCard 可视化
 - deepAnalysis 补充分析工具
 - Tripo 3D 模型异步生成与前端轮询（含 negativePrompt 和 texture_quality: high）

@@ -2,16 +2,17 @@
 
 ## 1. 身份
 
-- **定义：** 基于 Vercel AI SDK 的全栈聊天系统，集成八字分析（双 Agent）与 3D 吉祥物生成能力。
-- **职责：** 管理用户与 AI 的实时对话、工具调用执行、analysisNote 共享记忆同步、消息流式渲染、会话持久化。
+- **定义：** 基于 Vercel AI SDK 的全栈聊天系统，集成八字分析（双 Agent）、3D 吉祥物生成与面具（角色）选择能力。
+- **职责：** 管理用户与 AI 的实时对话、面具角色切换、工具调用执行、analysisNote 共享记忆同步、消息流式渲染、会话持久化。
 
 ## 2. 核心组件
 
-- `app/api/chat/route.ts` (`POST`, `buildAnalysisContext`, `analyzeBazi`, `deepAnalysis`, `generateMascot`, `retextureMascot`, `presentOptions`, `currentNote`, `currentGender`): 服务端 API 路由，使用 `streamText` 调用 DeepSeek，定义五个工具。`analyzeBazi` 为纯计算工具，执行时保存 `currentGender`，返回值包含 `gender` 字段供前端展示乾造/坤造。`deepAnalysis` 的 `question` 参数可选（不传做综合分析，传入做补充分析），将 `currentGender` 传递给 `runAnalysisStream`。`currentNote` 和 `currentGender` 闭包变量在同一请求内共享工具状态。`stopWhen` 配置为 `[stepCountIs(10), hasToolCall('presentOptions')]`（OR 语义）。
-- `hooks/use-chat-session.ts` (`useChatSession`, `createSession`, `transport`, `sanitizeMessages`): 会话管理核心 Hook，封装 AI SDK `useChat`、IndexedDB 持久化、自定义 Transport（携带 `pendingTaskId` + `analysisNote`）、analysisNote 自动同步。`sanitizeMessages` 过滤不完整 tool call parts 防止 `MissingToolResultsError`。会话切换时先停止 streaming + 取消待执行 save。
-- `stores/chat-store.ts` (`useChatStore`, `ChatState`, `Phase`): Zustand 全局状态，管理 phase/modelUrl/pendingTaskId/sidebarOpen/analysisNote。`reset()` 同时清空 analysisNote。
-- `lib/persistence/chat-db.ts` (`ChatDB`, `saveSession`, `listSessions`, `getSessionMessages`, `saveAnalysisNote`, `getAnalysisNote`, `deleteAnalysisNote`): IndexedDB 持久化层，三个 ObjectStore（sessions + messages + analysisNotes），DB_VERSION=2。
-- `components/chat/index.tsx` (`Chat`): 聊天主容器，组合 Conversation + PromptInput + ChatMessage。
+- `app/api/chat/route.ts` (`POST`, `buildAnalysisContext`, `analyzeBazi`, `deepAnalysis`, `generateMascot`, `retextureMascot`, `presentOptions`, `currentNote`, `currentGender`, `behaviorPrompt`): 服务端 API 路由，使用 `streamText` 调用 DeepSeek，定义五个工具。原 systemPrompt 拆分为 `mask.promptOverride`（来自面具的「你是谁」段落）+ `behaviorPrompt`（行为规则和工具使用说明），根据请求中的 `maskId` 通过 `getMaskById()` 查找面具并拼装完整 system prompt: `mask.promptOverride + behaviorPrompt + analysisContext + pendingContext + timeContext`。`analyzeBazi` 为纯计算工具，执行时保存 `currentGender`，返回值包含 `gender` 字段供前端展示乾造/坤造。`deepAnalysis` 的 `question` 参数可选。`currentNote` 和 `currentGender` 闭包变量在同一请求内共享工具状态。`stopWhen` 配置为 `[stepCountIs(10), hasToolCall('presentOptions')]`（OR 语义）。
+- `lib/masks.ts` (`Mask`, `MASKS`, `DEFAULT_MASK_ID`, `getMaskById`): 面具类型定义与预设数据。`Mask` 接口包含 id/name/description/icon/promptOverride 五个字段。`MASKS` 为静态常量数组，定义 5 个预设面具：default（命理助手）、blunt（毒舌大师）、warm（知心姐姐）、rational（理性派）、chameleon（千面师）。`getMaskById` 按 id 查找面具，未找到时回退到 `MASKS[0]`。
+- `hooks/use-chat-session.ts` (`useChatSession`, `createSession`, `transport`, `sanitizeMessages`): 会话管理核心 Hook，封装 AI SDK `useChat`、IndexedDB 持久化、自定义 Transport（携带 `pendingTaskId` + `analysisNote` + `maskId`）、analysisNote 自动同步、maskId 会话级同步。`createSession()` 从 Zustand 读取当前 `maskId` 写入新会话。`loadSession` 恢复会话时将 `session.maskId` 回写 Zustand。`sanitizeMessages` 过滤不完整 tool call parts 防止 `MissingToolResultsError`。会话切换时先停止 streaming + 取消待执行 save。
+- `stores/chat-store.ts` (`useChatStore`, `ChatState`, `Phase`): Zustand 全局状态，管理 phase/modelUrl/pendingTaskId/sidebarOpen/analysisNote/maskId。`maskId` 默认值为 `'default'`。`reset()` 不重置 maskId（新建会话继承当前面具选择），清空 analysisNote。
+- `lib/persistence/chat-db.ts` (`ChatDB`, `Session`, `saveSession`, `listSessions`, `getSessionMessages`, `saveAnalysisNote`, `getAnalysisNote`, `deleteAnalysisNote`): IndexedDB 持久化层，三个 ObjectStore（sessions + messages + analysisNotes），DB_VERSION=2。`Session` 接口新增可选字段 `maskId?: string`，旧数据兼容（无需升级 DB_VERSION）。
+- `components/chat/index.tsx` (`Chat`, `MaskGuide`): 聊天主容器，组合 Conversation + PromptInput + ChatMessage。新会话时（`messages.length === 0`）渲染 `MaskGuide` 面具卡片引导网格替代空状态；有消息后渲染消息列表。`MaskGuide` 从 `MASKS` 数组渲染 2x3 卡片网格，点击卡片调用 `setMaskId` 设置选中面具。
 - `components/chat/chat-message.tsx` (`ChatMessage`, `TOOL_TITLES`): 消息路由渲染器，支持 `onSendMessage` prop。对 `analyzeBazi` 工具传递 `output.gender` 到 BaguaCard；对 `deepAnalysis` 工具从 `part.input.question` 提取追问问题传入 AnalysisCard。
 - `components/chat/options-buttons.tsx` (`OptionsButtons`): 选项按钮组件。
 - `components/chat/model-preview.tsx` (`ModelPreview`): 3D 模型异步轮询组件。
@@ -27,9 +28,10 @@
 ### 3.2 消息发送流程
 
 1. **用户输入：** `components/chat/index.tsx` -- PromptInput `onSubmit` 调用 `sendMessage({ text })`。
-2. **Transport 注入：** `hooks/use-chat-session.ts:17-23` -- DefaultChatTransport 从 Zustand `getState()` 读取 `pendingTaskId` 和 `analysisNote` 注入请求体。
-3. **API 处理：** `app/api/chat/route.ts:106-107` -- POST handler 解构 `{ messages, pendingTaskId, analysisNote }`。
-4. **analysisNote 注入：** `app/api/chat/route.ts:85-104` -- `buildAnalysisContext(existingNote)` 将分析结论格式化后拼接到 system prompt 末尾。
+2. **Transport 注入：** `hooks/use-chat-session.ts:17-24` -- DefaultChatTransport 从 Zustand `getState()` 读取 `pendingTaskId`、`analysisNote` 和 `maskId` 注入请求体。
+3. **API 处理：** `app/api/chat/route.ts:101-102` -- POST handler 解构 `{ messages, pendingTaskId, analysisNote, maskId }`。
+4. **面具解析：** `app/api/chat/route.ts:244` -- `getMaskById(maskId ?? 'default')` 查找面具定义。
+5. **System Prompt 拼装：** `app/api/chat/route.ts:251` -- `mask.promptOverride + behaviorPrompt + analysisContext + pendingContext + timeContext` 组成完整 system prompt。
 5. **流式响应：** `streamText` 配置五个工具和 `stopWhen` 停止条件，返回 `UIMessageStreamResponse`。
 6. **消息更新：** `useChat` 自动解析流并更新 `messages` 数组。
 7. **analysisNote 同步：** `hooks/use-chat-session.ts:58-85` -- effect 检测 `analyzeBazi`/`deepAnalysis` 工具输出中的 `analysisNote`，保存到 IndexedDB + Zustand。
@@ -72,8 +74,8 @@
 
 ### 3.7 会话持久化策略
 
-- **Zustand（内存层）：** 管理 phase、modelUrl、pendingTaskId、analysisNote -- 页面刷新后重置，会话切换时 `reset()` 清空（含 analysisNote）。
-- **IndexedDB（持久层）：** 数据库名 `tripo-bagua`，DB_VERSION=2，三个 ObjectStore：`sessions`（by-updated 索引）、`messages`（sessionId 为主键）、`analysisNotes`（sessionId 为主键，v2 新增）。
+- **Zustand（内存层）：** 管理 phase、modelUrl、pendingTaskId、analysisNote、maskId -- 页面刷新后重置（maskId 重置为 'default'），会话切换时 `reset()` 清空（含 analysisNote），但 maskId 不被 reset 清空。
+- **IndexedDB（持久层）：** 数据库名 `tripo-bagua`，DB_VERSION=2，三个 ObjectStore：`sessions`（by-updated 索引，Session 含可选 maskId 字段）、`messages`（sessionId 为主键）、`analysisNotes`（sessionId 为主键，v2 新增）。
 - **写入时机：** 消息变化后 300ms 防抖 -> `saveSession()`；analysisNote 变化时 -> `saveAnalysisNote()` 立即写入。
 - **读取时机：** 页面加载 -> `getLatestSession()` + `getAnalysisNote()` 恢复；会话切换 -> `getSessionMessages()` + `getAnalysisNote()` 加载。
 - **删除：** `deleteSession` 事务性删除 sessions + messages + analysisNotes。
@@ -82,8 +84,13 @@
 
 - **presentOptions 必须有 execute：** 没有 execute 时 tool part state 是 `input-available`，但对话历史缺少 tool result 会导致 DeepSeek API 拒绝后续请求。
 - **stopWhen 数组语义是 OR：** 任一条件满足即停止。
-- **Transport body 携带 analysisNote：** 每次请求将内存中的 analysisNote 传给服务端，服务端用于 `buildAnalysisContext` 注入 system prompt 和 `runAnalysisStream` 的上下文。
+- **Transport body 携带 analysisNote + maskId：** 每次请求将内存中的 analysisNote 和 maskId 传给服务端，服务端用于 `buildAnalysisContext` 注入 system prompt 和 `getMaskById` 解析面具。
 - **analysisNote 同步兼容性：** `hooks/use-chat-session.ts` 的 `syncAnalysisNote` effect 只匹配 `output-available` 状态中的 `output.analysisNote`，中间 yield（`preliminary: true`）的 output 中不含 `analysisNote`，因此 `output.analysisNote` 检查自然过滤了中间状态。`sanitizeMessages` 无需改动。
 - **async* execute 生成器工具：** AI SDK 6.x 特性。`deepAnalysis` 使用 `async*` 函数签名，中间 yield 和最终 yield 在前端 tool part 上均为 `state: 'output-available'`，通过 `preliminary: true` 字段区分中间 yield。最终 yield 的 `preliminary` 为 falsy。前端 `chat-message.tsx:100-114` 从 tool part 提取 `preliminary` 和 `input.question` 传给 `AnalysisCard`。
 - **Chat 组件返回模式：** `Chat()` 返回 `{ currentSession, loadSession, newSession, ui }` 对象，分离数据控制与 UI 渲染。
 - **动态导入持久化模块：** `await import('@/lib/persistence/chat-db')` 减少初始包体积。
+- **面具只影响对话 Agent：** 面具的 `promptOverride` 只替换对话 Agent 的「你是谁」段落，分析 Agent（`lib/bazi/analysis-agent.ts`）有独立的 system prompt，不受面具影响。
+- **面具只在新会话时选择：** 对话过程中不可切换面具，因为 DeepSeek 模型倾向于跟随对话历史的风格模式，中途切换 system prompt 效果不佳。
+- **面具为静态常量：** `MASKS` 数组 hardcoded 在 `lib/masks.ts`，不从数据库或 API 加载。
+- **reset() 不重置 maskId：** `useChatStore.reset()` 清空 phase/modelUrl/pendingTaskId/analysisNote 但保留 maskId，新建会话时继承当前面具选择。
+- **Session.maskId 向后兼容：** `Session` 接口中 `maskId` 为可选字段（`maskId?: string`），旧数据无此字段时服务端回退到 `'default'` 面具，无需升级 DB_VERSION。
