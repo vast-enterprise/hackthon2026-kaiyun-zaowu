@@ -1,1 +1,0 @@
-[  146026ms] [ERROR] Cannot update a component (`%s`) while rendering a different component (`%s`). To locate the bad setState() call inside `%s`, follow the stack trace as described in https://react.dev/link/setstate-in-render Home Chat Chat @ http://localhost:3000/_next/static/chunks/e3fa3_next_dist_d86ab2ab._.js:3127
