@@ -1,8 +1,8 @@
 import type { SourceKey } from './classics'
 // lib/bazi/analysis-agent.ts
-import type { AnalysisEntry, AnalysisNote, BaziResult } from './types'
+import type { AnalysisEntry, AnalysisEvent, AnalysisNote, BaziResult, ClassicQueryResult } from './types'
 import { createDeepSeek } from '@ai-sdk/deepseek'
-import { generateText, stepCountIs, tool } from 'ai'
+import { generateText, streamText, stepCountIs, tool } from 'ai'
 import { z } from 'zod'
 import { searchClassics } from './classics'
 
@@ -64,6 +64,57 @@ export async function runAnalysis({ rawData, previousNote, question }: AnalyzePa
     content: text,
     references: extractReferences(text),
     createdAt: Date.now(),
+  }
+}
+
+export async function* runAnalysisStream({ rawData, previousNote, question }: AnalyzeParams): AsyncGenerator<AnalysisEvent> {
+  const userContent = buildUserPrompt({ rawData, previousNote, question })
+
+  const result = streamText({
+    model: deepseek('deepseek-chat'),
+    system: ANALYSIS_SYSTEM_PROMPT,
+    prompt: userContent,
+    tools: { queryClassics: queryClassicsTool },
+    stopWhen: stepCountIs(5),
+  })
+
+  let fullText = ''
+
+  for await (const part of result.fullStream) {
+    switch (part.type) {
+      case 'text-delta':
+        fullText += part.text
+        yield { type: 'text-delta', textDelta: part.text }
+        break
+      case 'tool-call':
+        if (part.toolName === 'queryClassics') {
+          const input = part.input as { query: string; source?: string }
+          yield {
+            type: 'tool-call',
+            query: input.query,
+            source: input.source ?? 'all',
+          }
+        }
+        break
+      case 'tool-result':
+        if (part.toolName === 'queryClassics') {
+          yield {
+            type: 'tool-result',
+            results: part.output as ClassicQueryResult[],
+          }
+        }
+        break
+    }
+  }
+
+  yield {
+    type: 'finish',
+    entry: {
+      question,
+      content: fullText,
+      references: extractReferences(fullText),
+      createdAt: Date.now(),
+    },
   }
 }
 
