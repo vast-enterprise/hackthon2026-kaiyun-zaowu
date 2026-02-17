@@ -7,9 +7,9 @@
 
 ## 2. 核心组件
 
-- `lib/bazi/analysis-agent.ts` (`runAnalysis`, `buildUserPrompt`, `extractReferences`, `ANALYSIS_SYSTEM_PROMPT`): 分析 Agent 核心，使用 `generateText` 调用 DeepSeek 专注命理推理，接收排盘数据和已有分析，产出 `AnalysisEntry`。
+- `lib/bazi/analysis-agent.ts` (`runAnalysis`, `runAnalysisStream`, `queryClassicsTool`, `buildUserPrompt`, `extractReferences`, `ANALYSIS_SYSTEM_PROMPT`): 分析 Agent 核心。`runAnalysis` 使用 `generateText`（非流式）产出 `AnalysisEntry`；`runAnalysisStream` 使用 `streamText` + `fullStream` 迭代器，yield `AnalysisEvent`（text-delta / tool-call / tool-result / finish 四种事件）。`queryClassicsTool` 已提取为模块级 tool，两个函数共享。
 - `lib/bazi/index.ts` (`calculateBazi`, `buildPillarDetail`, `buildDecadeFortunes`): 排盘计算入口，编排公历转换、四柱排盘、五行统计、神煞计算、大运推演的完整流程。
-- `lib/bazi/types.ts` (`BaziInput`, `BaziResult`, `AnalysisEntry`, `AnalysisNote`, `Pillar`, `FourPillars`, `FiveElements`): 完整类型系统，含排盘数据和分析记忆类型。
+- `lib/bazi/types.ts` (`BaziInput`, `BaziResult`, `AnalysisEntry`, `AnalysisNote`, `ClassicQueryResult`, `AnalysisEvent`, `AnalysisProgress`, `Pillar`, `FourPillars`, `FiveElements`): 完整类型系统，含排盘数据、分析记忆类型、流式分析事件与进度类型。
 - `lib/bazi/five-elements.ts` (`countFiveElements`, `WUXING_MAP`): 五行统计，遍历四柱天干地支计数木火土金水。
 - `lib/bazi/colors.ts` (`getWuXingColor`, `WU_XING_COLORS`): 五行 OKLCH 颜色映射，供 UI 渲染使用。
 - `app/api/chat/route.ts` (`analyzeBazi` tool, `deepAnalysis` tool, `buildAnalysisContext`, `currentNote`): 服务端 API 路由。`analyzeBazi` 为纯计算工具（只调用 `calculateBazi`，不调用 `runAnalysis`）。`deepAnalysis` 负责所有分析（首次综合分析 + 补充分析）。`currentNote` 闭包变量在同一请求内共享状态。`buildAnalysisContext` 将 analysisNote 注入 system prompt。
@@ -20,7 +20,7 @@
 
 ### 3.1 双 Agent 架构
 
-- **分析 Agent（内层）：** `lib/bazi/analysis-agent.ts` -- 嵌入 `deepAnalysis` 工具内部执行，使用 `generateText`（非流式）调用 DeepSeek，系统提示词约束专业命理推理，不关心表达风格，产出 Markdown 格式的 `AnalysisEntry`。
+- **分析 Agent（内层）：** `lib/bazi/analysis-agent.ts` -- 嵌入 `deepAnalysis` 工具内部执行。提供两种调用方式：`runAnalysis` 使用 `generateText`（非流式，保留向后兼容）；`runAnalysisStream` 使用 `streamText` + `fullStream` 迭代器（流式，为 `deepAnalysis` async* execute 提供事件流）。`queryClassicsTool` 已从 `runAnalysis` 内部提取为模块级 tool 定义，两个函数共享。
 - **对话 Agent（外层）：** `app/api/chat/route.ts` 的 `streamText` 调用 -- 负责用户交互，通过 `buildAnalysisContext` 将 analysisNote 注入 system prompt，将分析结论翻译为用户易懂的语言。排盘后自动连续调用 `analyzeBazi` -> `deepAnalysis`（multi-step tool calling）。
 - **共享记忆层：** `AnalysisNote` 对象 -- 包含 rawData（排盘结果）和 analyses（分析条目数组），通过 IndexedDB 持久化（`analysisNotes` store），客户端 Zustand 同步，transport body 携带到服务端。
 - **闭包状态共享：** `currentNote` 变量在 POST handler 内声明，`analyzeBazi` 写入排盘数据后 `deepAnalysis` 可立即读取，实现同一请求内的跨工具状态传递。
@@ -35,24 +35,27 @@
 - **1. 用户输入：** 用户在聊天中提供出生年月日时 + 性别。
 - **2. 对话 Agent 确认：** 外层 Agent 复述生辰信息，等用户确认后调用 `analyzeBazi`。
 - **3. 排盘计算（纯计算）：** `app/api/chat/route.ts:121-137` -- `analyzeBazi.execute` 调用 `calculateBazi(input)` 同步完成排盘，创建初始 `currentNote`（只有 rawData，analyses 保留已有或空数组），返回排盘数据。不调用 `runAnalysis`。
-- **4. 自动触发综合分析：** 模型自动连续调用 `deepAnalysis`（不传 question），`app/api/chat/route.ts:145-170` 通过闭包读取 `currentNote.rawData`，调用 `runAnalysis({ rawData, previousNote, question: null })` 做全面分析。
-- **5. 组装 AnalysisNote：** `deepAnalysis.execute` 将新 `AnalysisEntry` 追加到 `currentNote.analyses`，更新 `currentNote` 闭包变量，返回 `{ success: true, analysisNote: currentNote }`。
-- **6. 前端同步：** `hooks/use-chat-session.ts:81-107` -- `syncAnalysisNote` effect 检测 `analyzeBazi`/`deepAnalysis` 工具输出中的 `analysisNote`，保存到 IndexedDB 并更新 Zustand。
-- **7. 对话 Agent 解读：** 下一轮请求时 `buildAnalysisContext` 将分析结论注入 system prompt，对话 Agent 翻译为用户友好的语言。
-- **8. UI 渲染：** `chat-message.tsx` 路由到 `BaguaCard` 展示排盘数据。
+- **4. 自动触发综合分析（流式）：** 模型自动连续调用 `deepAnalysis`（不传 question），`app/api/chat/route.ts:140-203` 的 `async* execute` 生成器消费 `runAnalysisStream`，通过 150ms 节流 yield `AnalysisProgress` 快照。五个 phase：`started` -> `analyzing`（文本流入）-> `querying`（查阅典籍中）-> `queried`（典籍结果返回）-> `complete`（分析完成，含最终 analysisNote）。
+- **5. 组装 AnalysisNote：** `runAnalysisStream` 的 `finish` 事件携带完整 `AnalysisEntry`，`deepAnalysis` 在收到 finish 后追加到 `currentNote.analyses`，最终 yield `{ phase: 'complete', analysisNote: currentNote }`。
+- **6. 前端流式渲染：** `components/chat/chat-message.tsx:97-108` 在 `partial-output-available`（中间 yield）和 `output-available`（最终 yield）状态都渲染 `AnalysisCard`（`components/chat/analysis-card.tsx`），根据 `AnalysisProgress.phase` 展示不同 UI 状态。
+- **7. 前端同步：** `hooks/use-chat-session.ts:81-107` -- `syncAnalysisNote` effect 只匹配 `output-available` 状态中的 `analysisNote`，保存到 IndexedDB 并更新 Zustand。中间状态的 yield 不会触发持久化。
+- **8. 对话 Agent 解读：** 下一轮请求时 `buildAnalysisContext` 将分析结论注入 system prompt，对话 Agent 翻译为用户友好的语言。
+- **9. UI 渲染：** `chat-message.tsx` 路由到 `BaguaCard` 展示排盘数据；`AnalysisCard` 展示分析过程和结果。
 
 ### 3.4 补充分析流程（deepAnalysis）
 
 - **1. 用户追问：** 用户提出已有分析未覆盖的问题。
 - **2. 对话 Agent 判断：** 外层 Agent 发现已有分析不足以回答，调用 `deepAnalysis` 工具并传入具体 `question`。
-- **3. 分析 Agent 补充：** `app/api/chat/route.ts:145-170` -- 调用 `runAnalysis` 带具体 `question`，分析 Agent 基于排盘数据和已有分析做定向深入分析。
-- **4. 记忆更新：** 新 entry 追加到 AnalysisNote，前端同步保存。
+- **3. 分析 Agent 补充（流式）：** `app/api/chat/route.ts:140-203` -- `async* execute` 消费 `runAnalysisStream` 带具体 `question`，分析 Agent 基于排盘数据和已有分析做定向深入分析，通过流式 yield 实时展示分析过程。
+- **4. 记忆更新：** 新 entry 追加到 AnalysisNote，前端在 `output-available` 状态同步保存。
 
 ## 4. 设计要点
 
 - **职责分离：** analyzeBazi 纯计算（同步、瞬间返回），deepAnalysis 负责所有 AI 分析（首次综合 + 补充分析）。分析 Agent 专注准确性和完整性，对话 Agent 专注用户体验和表达。
 - **闭包状态共享：** `currentNote` 在 POST handler 作用域内声明为 `let`，`analyzeBazi` 写入后 `deepAnalysis` 可立即读取，无需等待前端同步往返。这使得 multi-step tool calling（analyzeBazi -> deepAnalysis）在单次请求内完成。
 - **增量分析：** AnalysisNote 采用追加式设计，每次分析都能看到之前的结论，避免重复分析，支持渐进深入。
+- **流式分析 UX：** `runAnalysisStream` 将 `streamText` 的 `fullStream` 事件拆分为四种 `AnalysisEvent`（text-delta / tool-call / tool-result / finish），`deepAnalysis` 的 `async* execute` 消费事件流并 yield `AnalysisProgress` 快照（150ms 节流），前端 `AnalysisCard` 根据 phase 实时渲染分析文本、典籍查阅状态。AI SDK 6.x 中 yield 的中间值对应 `partial-output-available` 状态，最终 yield 对应 `output-available`。
+- **流式属性名注意：** AI SDK 6.x `streamText.fullStream` 中：text-delta 事件用 `part.text`（非 textDelta），tool-call 事件用 `part.input`（非 args），tool-result 事件用 `part.output`（非 result）。
 - **早子时算法：** `LunarHour.provider = new LunarSect2EightCharProvider()` 配置"早子时算当日"。
 - **容错设计：** `getShen` 和 `calculateRelation` 均包裹在 try-catch 中，闭源库异常不会阻断主流程。
 - **纯函数计算：** `calculateBazi` 为纯同步函数，无副作用，便于测试和复用。

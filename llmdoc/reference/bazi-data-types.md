@@ -2,18 +2,18 @@
 
 ## 1. 核心概要
 
-八字类型系统定义于 `lib/bazi/types.ts`，以 `BaziInput` 为输入、`BaziResult` 为输出，中间通过 `Pillar`、`TianGan`、`DiZhi` 等接口描述命盘数据。阶段 1 新增 `AnalysisEntry` 和 `AnalysisNote` 类型，构成双 Agent 架构的共享记忆层。
+八字类型系统定义于 `lib/bazi/types.ts`，以 `BaziInput` 为输入、`BaziResult` 为输出，中间通过 `Pillar`、`TianGan`、`DiZhi` 等接口描述命盘数据。`AnalysisEntry` 和 `AnalysisNote` 构成双 Agent 架构的共享记忆层。`ClassicQueryResult`、`AnalysisEvent`、`AnalysisProgress` 支持流式分析输出。
 
 ## 2. 真相来源
 
-- **类型定义：** `lib/bazi/types.ts` - 所有接口的完整定义（BaziInput, BaziResult, Pillar, FourPillars, TianGan, DiZhi, CangGan, FiveElements, DecadeFortune, AnalysisEntry, AnalysisNote）。
+- **类型定义：** `lib/bazi/types.ts` - 所有接口的完整定义（BaziInput, BaziResult, Pillar, FourPillars, TianGan, DiZhi, CangGan, FiveElements, DecadeFortune, AnalysisEntry, AnalysisNote, ClassicQueryResult, AnalysisEvent, AnalysisProgress）。
 - **核心计算：** `lib/bazi/index.ts` (`calculateBazi`) - BaziResult 的实际生产者。
-- **分析 Agent：** `lib/bazi/analysis-agent.ts` (`runAnalysis`) - AnalysisEntry 的实际生产者。
+- **分析 Agent：** `lib/bazi/analysis-agent.ts` (`runAnalysis`, `runAnalysisStream`) - AnalysisEntry 的实际生产者。`runAnalysisStream` 产出 AnalysisEvent 流。
 - **五行统计：** `lib/bazi/five-elements.ts` (`countFiveElements`) - FiveElements 的计算实现。
 - **颜色映射：** `lib/bazi/colors.ts` (`WU_XING_COLORS`, `getWuXingColor`) - 五行到 OKLCH 颜色的映射表。
-- **工具 Schema：** `app/api/chat/route.ts:109-176` - analyzeBazi 和 deepAnalysis 工具定义。
+- **工具 Schema：** `app/api/chat/route.ts:112-203` - analyzeBazi 和 deepAnalysis（async* execute 生成器）工具定义。
 - **持久化：** `lib/persistence/chat-db.ts` (`saveAnalysisNote`, `getAnalysisNote`) - AnalysisNote 的 IndexedDB 读写。
-- **UI 消费者：** `components/chat/bagua-card.tsx` (`BaguaCard`) - BaziResult 的主要渲染组件。
+- **UI 消费者：** `components/chat/bagua-card.tsx` (`BaguaCard`) - BaziResult 的主要渲染组件；`components/chat/analysis-card.tsx` (`AnalysisCard`, `ClassicSubCard`) - AnalysisProgress 的流式渲染组件。
 - **架构文档：** `/llmdoc/architecture/bazi-system.md` - 八字系统的完整架构和执行流程。
 
 ## 3. 类型层级关系
@@ -43,6 +43,29 @@ AnalysisNote (共享记忆层)
   |    |- references: string[] (引用经典, 如《子平真诠》)
   |    |- createdAt: number
   |- updatedAt: number
+
+ClassicQueryResult (典籍查询结果)
+  |- query: string (查询内容)
+  |- source: string (典籍来源)
+  |- chapter: string (章节)
+  |- content: string (原文)
+  |- score: number (相关度)
+
+AnalysisEvent (流式事件, runAnalysisStream 产出)
+  = { type: 'text-delta', textDelta: string }
+  | { type: 'tool-call', query: string, source: string }
+  | { type: 'tool-result', results: ClassicQueryResult[] }
+  | { type: 'finish', entry: AnalysisEntry }
+
+AnalysisProgress (deepAnalysis yield 快照)
+  |- phase: 'started' | 'analyzing' | 'querying' | 'queried' | 'complete'
+  |- partialText?: string (累积的分析文本)
+  |- query?: string (当前查询)
+  |- source?: string (当前查询的典籍)
+  |- classicResults?: ClassicQueryResult[] (当前查询结果)
+  |- classicQueries?: Array<{ query, source, results }> (所有已完成查询)
+  |- analysisNote?: AnalysisNote (complete 时携带)
+  |- error?: string
 ```
 
 ## 4. 关键约束

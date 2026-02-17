@@ -14,9 +14,14 @@
    - 返回 `{ success: true, data: BaziResult, analysisNote: currentNote }`
    - **不调用 `runAnalysis`**，排盘瞬间返回
 
-4. **综合分析（自动触发）：** 模型自动连续调用 `deepAnalysis`（不传 question），`app/api/chat/route.ts:140-171` 通过闭包读取 `currentNote.rawData`，调用 `runAnalysis({ rawData, previousNote, question: null })` 做全面命理分析，产出 `AnalysisEntry` 追加到 `currentNote`。
+4. **综合分析（自动触发，流式）：** 模型自动连续调用 `deepAnalysis`（不传 question），`app/api/chat/route.ts:140-203` 的 `async* execute` 生成器消费 `runAnalysisStream`，通过 150ms 节流 yield `AnalysisProgress` 快照。前端 `AnalysisCard` 实时展示分析文本和典籍查阅过程。五个 phase：
+   - `started`：初始骨架屏
+   - `analyzing`：流式文本渲染 + 光标闪烁
+   - `querying`：显示正在查阅的典籍（LoaderIcon 旋转）
+   - `queried`：典籍结果作为可展开子卡片（ClassicSubCard）
+   - `complete`：自动折叠为摘要行，显示引用典籍数量
 
-5. **前端 analysisNote 同步：** `hooks/use-chat-session.ts:81-107` 的 effect 检测工具输出中的 `analysisNote`，保存到 IndexedDB 和 Zustand。下次请求时 transport body 自动携带。
+5. **前端 analysisNote 同步：** `hooks/use-chat-session.ts:81-107` 的 effect 只匹配 `output-available` 状态（即最终 yield）中的 `analysisNote`，保存到 IndexedDB 和 Zustand。中间状态（`partial-output-available`）不触发持久化。下次请求时 transport body 自动携带。
 
 6. **对话 Agent 解读：** `buildAnalysisContext`（`app/api/chat/route.ts:85-104`）将分析结论注入 system prompt，对话 Agent 用大白话翻译给用户。
 
@@ -26,8 +31,8 @@
 
 1. **用户追问：** 用户提出已有分析未覆盖的问题（如"事业方向怎么看？"）。
 2. **对话 Agent 判断：** 若已有 analysisNote 中的分析不足以回答，调用 `deepAnalysis` 工具并传入具体 `question`。
-3. **分析 Agent 定向分析：** `app/api/chat/route.ts:140-171` 调用 `runAnalysis` 带具体 `question`，分析 Agent 基于排盘数据和已有分析做深入分析。
-4. **记忆更新：** 新 `AnalysisEntry` 追加到 `AnalysisNote.analyses` 数组，前端自动同步。
+3. **分析 Agent 定向分析（流式）：** `app/api/chat/route.ts:140-203` 的 `async* execute` 消费 `runAnalysisStream` 带具体 `question`，分析 Agent 基于排盘数据和已有分析做深入分析，前端 `AnalysisCard` 实时展示分析过程。
+4. **记忆更新：** 新 `AnalysisEntry` 追加到 `AnalysisNote.analyses` 数组，前端在 `output-available` 状态自动同步。
 
 ## 如何扩展八字计算
 

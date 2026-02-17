@@ -14,6 +14,7 @@
 - `components/sidebar/index.tsx` (`Sidebar`): 业务组件，响应式折叠侧边栏，集成会话列表和主题切换。
 - `components/ai-elements/*.tsx` (7 个组件): AI 聊天专用组件层，包含 Conversation、Message、PromptInput、Reasoning、Tool、CodeBlock、Shimmer。
 - `components/chat/index.tsx` (`Chat`): 页面级聊天组合组件，整合 AI Elements 和 useChatSession hook。
+- `components/chat/analysis-card.tsx` (`AnalysisCard`, `ClassicSubCard`): 分析过程流式渲染卡片。`AnalysisCard` 根据 `AnalysisProgress.phase` 渲染不同状态（骨架屏 -> 流式文本 -> 典籍查阅 -> 完成摘要折叠）。`ClassicSubCard` 为嵌套的典籍查阅子卡片，可展开显示经典原文。基于 Collapsible、Badge 等基础 UI 组件构建。
 - `components/order-modal/index.tsx` (`OrderModal`): 业务弹窗，基于 Dialog 封装的下单打印界面（待实现）。
 - `components/ui/resizable.tsx` (`ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`): 可调整大小面板，用于主页分栏布局。
 
