@@ -21,4 +21,11 @@
    - `components/ai-elements/`: AI 聊天专用组件，与 Vercel AI SDK 类型耦合。
    - 组件文件名使用 kebab-case（如 `button-group.tsx`、`hover-card.tsx`）。
 
-7. **验证:** 运行 `pnpm dev` 启动开发服务器，在浏览器中检查组件在浅色和深色模式下的表现。使用浏览器 DevTools 搜索 `data-slot` 属性确认组件标识正确。
+7. **移动端响应式适配:** 项目使用单一断点 768px（Tailwind `md:`）区分手机端和平板/桌面端。关键开发规范：
+   - **JS 检测:** 使用 `useMobile()` hook（`hooks/use-mobile.ts`）获取 `isMobile` 布尔值，用于条件渲染不同布局（如 `app/page.tsx:35` 的三元判断）。
+   - **CSS 前缀:** 使用 `md:` 前缀为平板/桌面端覆盖样式。移动端样式写在前（默认），桌面端样式用 `md:` 前缀覆盖。示例：`p-2 md:p-4`（`components/chat/index.tsx:62`）、`gap-2 md:gap-3`（`components/chat/bagua-card.tsx:108`）。
+   - **安全区域:** 对紧贴屏幕顶部/底部的元素添加 `safe-area-top` / `safe-area-bottom` 类（定义在 `app/globals.css:132-140`），支持 iOS 刘海屏和底部横条。
+   - **侧边栏:** 手机端通过 `useChatStore().setSidebarOpen` 控制侧边栏抽屉的显隐，`Sidebar` 组件已内置双模式切换逻辑（`components/sidebar/index.tsx`）。
+   - **覆盖层模式:** 手机端不使用 ResizablePanel 分栏，改用 fixed 全屏覆盖层（参考 `app/page.tsx:62-79` 的 3D 模型覆盖层实现）。
+
+8. **验证:** 运行 `pnpm dev` 启动开发服务器，在浏览器中检查组件在浅色和深色模式下的表现。使用浏览器 DevTools 搜索 `data-slot` 属性确认组件标识正确。使用 DevTools 设备模拟模式验证移动端布局（建议测试 375px / 768px / 1024px 三个宽度）。

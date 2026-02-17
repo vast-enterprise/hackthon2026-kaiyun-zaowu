@@ -2,9 +2,10 @@
 'use client'
 
 import type { Session } from '@/lib/persistence/chat-db'
-import { Menu, Plus } from 'lucide-react'
+import { Menu, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { useChatStore } from '@/stores/chat-store'
 import { SessionItem } from './session-item'
@@ -17,10 +18,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: SidebarProps) {
-  const { sidebarOpen, toggleSidebar } = useChatStore()
+  const { sidebarOpen, setSidebarOpen, toggleSidebar } = useChatStore()
   const [sessions, setSessions] = useState<Session[]>([])
+  const isMobile = useMobile()
 
   const collapsed = !sidebarOpen
+
+  // Close sidebar on mobile by default
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false)
+    }
+  }, [isMobile, setSidebarOpen])
 
   const loadSessions = useCallback(async () => {
     const { listSessions } = await import('@/lib/persistence/chat-db')
@@ -41,33 +50,39 @@ export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: Sid
     }
   }, [currentSessionId, loadSessions, onNewSession])
 
-  return (
-    <div
-      className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300',
-        collapsed ? 'w-12' : 'w-60',
-      )}
-    >
+  const handleSelectSession = useCallback((sessionId: string) => {
+    onSelectSession(sessionId)
+    if (isMobile) setSidebarOpen(false)
+  }, [onSelectSession, isMobile, setSidebarOpen])
+
+  const handleNewSession = useCallback(() => {
+    onNewSession()
+    if (isMobile) setSidebarOpen(false)
+  }, [onNewSession, isMobile, setSidebarOpen])
+
+  // Shared sidebar content (used in both mobile and desktop modes)
+  const sidebarContent = (
+    <>
       {/* Header */}
-      <div className={cn('flex items-center gap-2 border-b border-sidebar-border p-2', collapsed && 'justify-center')}>
-        <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={toggleSidebar}>
-          <Menu className="size-4" />
+      <div className={cn('flex items-center gap-2 border-b border-sidebar-border p-2', !isMobile && collapsed && 'justify-center')}>
+        <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={isMobile ? () => setSidebarOpen(false) : toggleSidebar}>
+          {isMobile ? <X className="size-4" /> : <Menu className="size-4" />}
         </Button>
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <span className="truncate text-sm font-semibold font-[var(--font-display)]">Tripo Bagua</span>
         )}
       </div>
 
       {/* New chat button */}
-      <div className={cn('p-2', collapsed && 'flex justify-center')}>
-        {collapsed
+      <div className={cn('p-2', !isMobile && collapsed && 'flex justify-center')}>
+        {!isMobile && collapsed
           ? (
-              <Button variant="ghost" size="icon" className="size-8" onClick={onNewSession} title="新对话">
+              <Button variant="ghost" size="icon" className="size-8" onClick={handleNewSession} title="新对话">
                 <Plus className="size-4" />
               </Button>
             )
           : (
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={onNewSession}>
+              <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={handleNewSession}>
                 <Plus className="size-4" />
                 新对话
               </Button>
@@ -75,22 +90,22 @@ export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: Sid
       </div>
 
       {/* Session list */}
-      <div className={cn('flex-1 overflow-y-auto p-2', collapsed && 'flex flex-col items-center gap-1')}>
+      <div className={cn('flex-1 overflow-y-auto p-2', !isMobile && collapsed && 'flex flex-col items-center gap-1')}>
         {sessions.map(session => (
           <SessionItem
             key={session.id}
             session={session}
             isActive={session.id === currentSessionId}
-            collapsed={collapsed}
-            onClick={() => onSelectSession(session.id)}
+            collapsed={!isMobile && collapsed}
+            onClick={() => handleSelectSession(session.id)}
             onDelete={() => handleDelete(session.id)}
           />
         ))}
       </div>
 
       {/* Footer: theme toggle */}
-      <div className={cn('border-t border-sidebar-border p-2', collapsed && 'flex justify-center')}>
-        {collapsed
+      <div className={cn('border-t border-sidebar-border p-2', !isMobile && collapsed && 'flex justify-center')}>
+        {!isMobile && collapsed
           ? (
               <Button
                 variant="ghost"
@@ -107,6 +122,42 @@ export function Sidebar({ currentSessionId, onSelectSession, onNewSession }: Sid
             )
           : <ThemeToggle />}
       </div>
+    </>
+  )
+
+  // Mobile: drawer overlay
+  if (isMobile) {
+    return (
+      <>
+        {/* Backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 transition-opacity"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        {/* Drawer */}
+        <div
+          className={cn(
+            'fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 safe-area-top',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          {sidebarContent}
+        </div>
+      </>
+    )
+  }
+
+  // Desktop / Tablet: inline sidebar
+  return (
+    <div
+      className={cn(
+        'hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300',
+        collapsed ? 'w-12' : 'w-60',
+      )}
+    >
+      {sidebarContent}
     </div>
   )
 }

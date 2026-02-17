@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 interface BaguaCardProps {
   data: BaziResult
+  gender?: 0 | 1
 }
 
 const WU_XING_LABELS: Record<string, string> = {
@@ -79,7 +80,7 @@ function FiveElementsBar({ elements }: { elements: BaziResult['fiveElements'] })
   )
 }
 
-export function BaguaCard({ data }: BaguaCardProps) {
+export function BaguaCard({ data, gender }: BaguaCardProps) {
   const [expanded, setExpanded] = useState(false)
   const pillars: { pillar: Pillar, label: string, isMain?: boolean }[] = [
     { pillar: data.fourPillars.year, label: '年柱' },
@@ -92,7 +93,7 @@ export function BaguaCard({ data }: BaguaCardProps) {
     <div className="mb-3 rounded-lg border border-border bg-card p-4">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold font-[var(--font-display)]">八字命盘</h3>
+        <h3 className="text-sm font-semibold font-[var(--font-display)]">{gender === 0 ? '坤造' : '乾造'}</h3>
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
@@ -104,7 +105,7 @@ export function BaguaCard({ data }: BaguaCardProps) {
       </div>
 
       {/* Four Pillars */}
-      <div className="mb-4 flex justify-center gap-3">
+      <div className="mb-4 flex justify-center gap-2 overflow-x-auto md:gap-3">
         {pillars.map(p => (
           <PillarColumn key={p.label} {...p} />
         ))}
@@ -164,11 +165,11 @@ export function BaguaCard({ data }: BaguaCardProps) {
           </div>
 
           {/* Gods */}
-          {data.gods && data.gods.length > 0 && (
+          {data.gods && Object.values(data.gods).some(g => g.length > 0) && (
             <div>
               <h4 className="mb-1 text-xs font-medium text-muted-foreground">神煞</h4>
               <p className="text-xs">
-                {data.gods.flat().join(' · ')}
+                {Object.values(data.gods).flat().join(' · ')}
               </p>
             </div>
           )}

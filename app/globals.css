@@ -128,3 +128,13 @@
     cursor: pointer;
   }
 }
+
+/* Mobile safe area support (iOS notch / bottom bar) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}

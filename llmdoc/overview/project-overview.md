@@ -49,7 +49,7 @@ app/
       task/[id]/route.ts        # 任务状态查询代理
 components/
   ai-elements/                  # Vercel AI Elements 组件
-  chat/                         # 聊天业务组件 (Chat/ChatMessage/BaguaCard/ModelPreview/OptionsButtons)
+  chat/                         # 聊天业务组件 (Chat/ChatMessage/BaguaCard/AnalysisCard/ModelPreview/PromptCard/OptionsButtons)
   model-viewer/                 # React Three Fiber 3D 查看器
   order-modal/                  # 订单弹窗 [表单未实现]
   sidebar/                      # 会话列表侧边栏 + 主题切换
@@ -86,6 +86,7 @@ vitest.config.ts                # Vitest 测试配置 (globals + @ 别名)
 - 会话持久化 (IndexedDB) + 侧边栏会话管理
 - analysisNote IndexedDB 持久化与跨请求同步
 - 浅色/深色主题切换
+- 移动端响应式适配（< 768px 断点，侧边栏抽屉、聊天全屏、3D 覆盖层、iOS 安全区域）
 - Vitest 测试基础设施 + 分析 Agent 单元测试
 
 **未实现 / 阻塞项:**

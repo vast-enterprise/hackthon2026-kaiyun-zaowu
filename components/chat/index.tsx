@@ -59,7 +59,7 @@ export function Chat() {
           <ConversationScrollButton />
         </Conversation>
 
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border p-2 safe-area-bottom md:p-4">
           <PromptInput
             onSubmit={({ text }) => {
               if (text.trim()) {

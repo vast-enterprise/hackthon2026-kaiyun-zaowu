@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   description: '输入生辰八字，AI 生成专属吉祥物 3D 模型',
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover' as const,
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
