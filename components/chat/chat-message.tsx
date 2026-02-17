@@ -96,12 +96,14 @@ export function ChatMessage({ message, isLast, isStreaming, onRegenerate, onSend
 
             // AnalysisCard for deepAnalysis (streaming + completed)
             if (toolName === 'deepAnalysis') {
-              if (output || state === 'partial-output-available') {
+              if (output) {
+                const preliminary = 'preliminary' in part ? Boolean(part.preliminary) : false
                 return (
                   <AnalysisCard
                     key={`tool-${message.id}-${index}`}
-                    progress={(output ?? {}) as unknown as AnalysisProgress}
+                    progress={output as unknown as AnalysisProgress}
                     state={state}
+                    preliminary={preliminary}
                   />
                 )
               }

@@ -2,8 +2,8 @@
 'use client'
 
 import type { UIMessage } from 'ai'
-import type { Session } from '@/lib/persistence/chat-db'
 import type { AnalysisNote } from '@/lib/bazi/types'
+import type { Session } from '@/lib/persistence/chat-db'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -81,17 +81,21 @@ export function useChatSession() {
   useEffect(() => {
     async function syncAnalysisNote() {
       const session = sessionRef.current
-      if (!session) return
+      if (!session)
+        return
 
       const lastMsg = chat.messages[chat.messages.length - 1]
-      if (lastMsg?.role !== 'assistant') return
+      if (lastMsg?.role !== 'assistant')
+        return
 
       for (const part of lastMsg.parts) {
         if (part.type.startsWith('tool-') && 'toolCallId' in part) {
           const toolName = part.type.slice(5)
-          if ((toolName === 'analyzeBazi' || toolName === 'deepAnalysis')
+          if (
+            (toolName === 'analyzeBazi' || toolName === 'deepAnalysis')
             && 'state' in part && part.state === 'output-available'
-            && 'output' in part && part.output) {
+            && 'output' in part && part.output
+          ) {
             const output = part.output as Record<string, unknown>
             if (output.analysisNote) {
               const { saveAnalysisNote } = await import('@/lib/persistence/chat-db')
@@ -117,7 +121,8 @@ export function useChatSession() {
         setCurrentSession(latest)
         setCurrentSessionId(latest.id)
         const note = await getAnalysisNote(latest.id)
-        if (note) useChatStore.getState().setAnalysisNote(note)
+        if (note)
+          useChatStore.getState().setAnalysisNote(note)
       }
       else {
         const session = createSession()

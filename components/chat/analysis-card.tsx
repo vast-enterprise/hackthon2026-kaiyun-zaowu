@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 interface AnalysisCardProps {
   progress: AnalysisProgress
   state: string
+  preliminary?: boolean
 }
 
 function ClassicSubCard({ query, source, results, isLoading }: {
@@ -66,8 +67,8 @@ function ClassicSubCard({ query, source, results, isLoading }: {
   )
 }
 
-export function AnalysisCard({ progress, state }: AnalysisCardProps) {
-  const isComplete = state === 'output-available' || progress.phase === 'complete'
+export function AnalysisCard({ progress, state, preliminary }: AnalysisCardProps) {
+  const isComplete = state === 'output-available' && !preliminary
   const [collapsed, setCollapsed] = useState(false)
 
   const shouldCollapse = isComplete && !progress.error
@@ -91,9 +92,14 @@ export function AnalysisCard({ progress, state }: AnalysisCardProps) {
           {isComplete
             ? <CheckCircleIcon className="size-4 text-green-600" />
             : <SearchIcon className="size-4 animate-pulse text-primary" />}
-          <span className="font-medium text-sm">
-            {isComplete ? summaryText : '命盘深入分析'}
-          </span>
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="font-medium text-sm">
+              {isComplete ? summaryText : '正在分析命盘，请稍候...'}
+            </span>
+            {!isComplete && progress.phase !== 'started' && (
+              <span className="text-[11px] text-muted-foreground">待分析完成后，我会为您生成详细解读</span>
+            )}
+          </div>
           {!isComplete && progress.phase !== 'started' && (
             <Badge variant="secondary" className="text-xs">分析中</Badge>
           )}
@@ -142,6 +148,13 @@ export function AnalysisCard({ progress, state }: AnalysisCardProps) {
             source={progress.source}
             isLoading
           />
+        )}
+
+        {/* Hint at bottom when still analyzing */}
+        {!isComplete && progress.partialText && (
+          <div className="border-t border-dashed border-muted pt-2 text-center text-[11px] text-muted-foreground">
+            待分析完成后，我会为您生成详细解读
+          </div>
         )}
       </CollapsibleContent>
     </Collapsible>

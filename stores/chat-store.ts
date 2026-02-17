@@ -1,5 +1,5 @@
-import { create } from 'zustand'
 import type { AnalysisNote } from '@/lib/bazi/types'
+import { create } from 'zustand'
 
 export type Phase = 'chat' | 'split'
 
