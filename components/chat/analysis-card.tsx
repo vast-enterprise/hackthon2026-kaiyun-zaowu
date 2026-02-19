@@ -113,7 +113,9 @@ export function AnalysisCard({ progress, state, preliminary, question }: Analysi
                   : '正在分析命盘，请稍候...'}
             </span>
             {!isComplete && progress.phase !== 'started' && (
-              <span className="text-[11px] text-muted-foreground">待分析完成后，我会为您生成详细解读</span>
+              <span className="text-[11px] text-muted-foreground">
+                专家正在深入分析，大约需要1-3分钟，分析完成后，会为您生成详细解读
+              </span>
             )}
           </div>
           {!isComplete && progress.phase !== 'started' && (
@@ -169,7 +171,7 @@ export function AnalysisCard({ progress, state, preliminary, question }: Analysi
         {/* Hint at bottom when still analyzing */}
         {!isComplete && progress.partialText && (
           <div className="border-t border-dashed border-muted pt-2 text-center text-[11px] text-muted-foreground">
-            待分析完成后，我会为您生成详细解读
+            专家正在深入分析，大约需要1-3分钟，分析完成后，会为您生成详细解读
           </div>
         )}
       </CollapsibleContent>

@@ -289,10 +289,11 @@ function pad(n: number, width = 2): string {
 
 /** 将超长文本按段落/句子边界分段，确保每段不超过 maxChars */
 function splitLongContent(content: string, maxChars = MAX_CHUNK_CHARS): string[] {
-  if (content.length <= maxChars) return [content]
+  if (content.length <= maxChars)
+    return [content]
 
   // 第一轮：按段落边界（\n\n）分段
-  const paragraphs = content.split(/\n\n+/)
+  const paragraphs = content.split(/\n{2,}/)
   const chunks: string[] = []
   let current = ''
 
@@ -301,14 +302,16 @@ function splitLongContent(content: string, maxChars = MAX_CHUNK_CHARS): string[]
       current = para
     }
     else if (current.length + 2 + para.length <= maxChars) {
-      current += '\n\n' + para
+      current += `\n\n${para}`
     }
     else {
-      if (current.length > 0) chunks.push(current)
+      if (current.length > 0)
+        chunks.push(current)
       current = para
     }
   }
-  if (current.length > 0) chunks.push(current)
+  if (current.length > 0)
+    chunks.push(current)
 
   // 第二轮：对仍然超长的块按句子边界再拆
   const result: string[] = []
@@ -328,11 +331,13 @@ function splitLongContent(content: string, maxChars = MAX_CHUNK_CHARS): string[]
         buf += sent
       }
       else {
-        if (buf.length > 0) result.push(buf.trim())
+        if (buf.length > 0)
+          result.push(buf.trim())
         buf = sent
       }
     }
-    if (buf.length > 0) result.push(buf.trim())
+    if (buf.length > 0)
+      result.push(buf.trim())
   }
 
   return result.filter(s => s.length > 0)
